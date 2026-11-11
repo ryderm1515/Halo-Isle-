@@ -26,22 +26,23 @@ pieces = []
 b = lathe('Body', prof, 56); pieces.append(b)
 HC, HR = Vector((0, 0, .762)), (.312, .29, .25)
 pieces.append(ellipsoid('Head', HC, HR, 56, 32))
-SH, HAND = Vector((.16, 0, .56)), Vector((.4, 0, .2))     # arm axis: shoulder (buried) -> tip of the teardrop
-def arm_r(t): return (.056 + .064 * sm(0, .62, t)) * (1 if t < .62 else math.sqrt(max(0, 1 - ((t - .62) / .38) ** 2)))
+SH, HAND = Vector((.17, 0, .555)), Vector((.365, 0, .205))     # arm axis: shoulder (buried) -> tip of the teardrop
+def arm_r(t): return (.058 + .044 * sm(0, .6, t)) * (1 if t < .62 else math.sqrt(max(0, 1 - ((t - .62) / .38) ** 2)))
 def teardrop(sx):
     bm = bmesh.new(); ax = (HAND - SH); e1 = Vector((ax.z, 0, -ax.x)).normalized(); e2 = Vector((0, 1, 0)); NR, NS = 22, 24; rings = []
     for i in range(NR + 1):
         t = i / NR; t = 1 - (1 - t) ** 1.6 if i else 0; c = SH + ax * t; r = max(arm_r(t), 0)
         if i == NR: rings.append([bm.verts.new((c.x * sx, c.y, c.z))]); continue
-        rings.append([bm.verts.new(((c.x + e1.x * r * math.cos(a)) * sx, c.y + r * 1.42 * math.sin(a), c.z + e1.z * r * math.cos(a))) for a in (2 * math.pi * k / NS for k in range(NS))])
+        rings.append([bm.verts.new(((c.x + e1.x * r * math.cos(a)) * sx, c.y + r * 1.14 * math.sin(a), c.z + e1.z * r * math.cos(a))) for a in (2 * math.pi * k / NS for k in range(NS))])
     for ra, rb in zip(rings, rings[1:]):
         for k in range(NS):
             if len(rb) == 1: bm.faces.new((ra[k], ra[(k + 1) % NS], rb[0]))
             else: bm.faces.new((ra[k], ra[(k + 1) % NS], rb[(k + 1) % NS], rb[k]))
     bm.faces.new(rings[0][::-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new('Arm'); bm.to_mesh(me); bm.free(); o = bpy.data.objects.new('Arm', me); C.collection.objects.link(o); return o
+arms = []   # the arms stay separate soft teardrops tucked into the torso (as on the sheet): swinging one can never tear or drag the body surface
 for sx in (1, -1):
-    pieces.append(teardrop(sx))
+    arms.append((teardrop(sx), sx))
     f = ellipsoid('Foot', (0, 0, 0), (1, 1, 1), 36, 24); P = 2.25
     for v in f.data.vertices:
         n = v.co; k = (abs(n.x) ** P + abs(n.y) ** P + abs(n.z) ** P) ** (-1 / P)
@@ -66,6 +67,18 @@ m = body.modifiers.new('dec', 'DECIMATE'); m.ratio = min(1, 20000 / tris)
 bpy.ops.object.modifier_apply(modifier='dec')
 for p in body.data.polygons: p.use_smooth = True
 body.data.materials.clear(); body.data.materials.append(JELLY)
+for ao, sx in arms:
+    for o in C.scene.objects: o.select_set(o is ao)
+    C.view_layer.objects.active = ao; sb = ao.modifiers.new('sub', 'SUBSURF'); sb.levels = 1; bpy.ops.object.modifier_apply(modifier='sub')
+    ax = HAND - SH; L2 = ax.length_squared
+    for n in ('chest', 'arm', 'hand'): ao.vertex_groups.new(name=n if n == 'chest' else n + ('L' if sx > 0 else 'R'))
+    for v in ao.data.vertices:
+        t = max(0, min(1, (Vector((v.co.x * sx, v.co.y, v.co.z)) - SH).dot(ax) / L2)); wh = sm(.36, .72, t); wc = .55 * sm(.2, 0, t); wa = max(0, 1 - wh - wc)
+        for g, w in zip(ao.vertex_groups, (wc, wa, wh)):
+            if w > 1e-4: g.add([v.index], w, 'REPLACE')
+        v.co *= 1.0 / top; v.co.z -= zmin
+    for pl in ao.data.polygons: pl.use_smooth = True
+    ao.data.materials.clear(); ao.data.materials.append(JELLY)
 s = 1.0
 print('body tris', sum(len(p.vertices) - 2 for p in body.data.polygons), 'scale', s)
 
@@ -188,7 +201,7 @@ for v in body.data.vertices:
     # arms never pull on the far side of the torso
     for n, sx in (('L', 1), ('R', -1)):
         for b_ in ('arm' + n, 'hand' + n):
-            if b_ in d: d[b_] *= sm(-.02, .1, v.co.x * sx) * sm(-.004, .034, math.hypot(v.co.x, v.co.y) - bodyR(v.co.z)) * sm(.62, .56, v.co.z)   # arms move the arms only: the torso and head keep their shape
+            if b_ in d: d[b_] = 0   # the torso never follows the arm bones
     setw(v, d)
 # soften the arm/torso seam so raised arms bend cleanly, then make the head and soles rigid again
 for o in C.scene.objects: o.select_set(o is body)
@@ -217,7 +230,7 @@ bone('leaf1', (0, 0, .99), tuple(leaf_curve(.04)), 'head')
 bone('leaf2', tuple(leaf_curve(.04)), tuple(leaf_curve(.55)), 'leaf1')
 bone('leaf3', tuple(leaf_curve(.55)), tuple(leaf_curve(1)), 'leaf2')
 bpy.ops.object.mode_set(mode='OBJECT')
-for o in C.scene.objects: o.select_set(o in [body, leaf] + eyes)
+for o in C.scene.objects: o.select_set(o in [body, leaf] + eyes + [a for a, _ in arms])
 C.view_layer.objects.active = body; bpy.ops.object.join(); hero = body; hero.name = 'Hero'
 if not any(m.type == 'ARMATURE' for m in hero.modifiers):
     md = hero.modifiers.new('Armature', 'ARMATURE'); md.object = rig

@@ -56,7 +56,7 @@ export async function createHero(loader, opts = {}) {
   const SPR = {}; const spring = (key, target, k, d, dt) => { const s = SPR[key] ||= { x: target, v: 0 }; s.v += ((target - s.x) * k - s.v * d) * dt; s.x += s.v * dt; return s.x; };
 
   const A = { t: 0, phase: 0, move: 0, run: 0, sprint: 0, air: 0, sq: 0, sqV: 0, leafY: 0, leafYV: 0, leafZ: 0, leafZV: 0, lookY: 0, lookX: 0, lookTY: 0, lookTX: 0, lookT: 2, tilt: 0, tiltT: 0,
-    blinkT: 2.5, blink: 0, idle: 0, emote: null, emoteT: 0, expr: 'neutral', sit: 0, sleep: 0, wob: 0, wobV: 0, roll: 0, land: 0, acc: 0, lastSp: 0, spinT: 0, slide: 0, skid: 0, glide: 0, swim: 0, hang: 0, drive: 0, fidT: 4, whole: 0, shift: Math.random() * 9 };
+    blinkT: 2.5, blink: 0, jig: 0, jigV: 0, Az: 0.1, stance: 0.6, leafX: 0, leafXV: 0, idle: 0, emote: null, emoteT: 0, expr: 'neutral', sit: 0, sleep: 0, wob: 0, wobV: 0, roll: 0, land: 0, acc: 0, lastSp: 0, spinT: 0, slide: 0, skid: 0, glide: 0, swim: 0, hang: 0, drive: 0, fidT: 4, whole: 0, shift: Math.random() * 9 };
   const EM = { wave: 2.2, celebrate: 1.9, surprised: 0.9, confused: 2.2, happy: 1.6, love: 2.2, laugh: 1.8, sad: 2.2, think: 2.6, determined: 1.6, stretch: 2.4, hop: 0.9, swing: 1.0 };
   const P = {}; const CH = ['hx', 'hy', 'hz', 'hpx', 'hpy', 'cx', 'cy', 'cz', 'nx', 'ny', 'nz', 'aLx', 'aLz', 'aRx', 'aRz', 'eLx', 'eLz', 'eRx', 'eRz', 'fLx', 'fLy', 'fLz', 'fLr', 'fRx', 'fRy', 'fRz', 'fRr'];
   const to = (o, k) => { if (k < 0.002) return; for (const c in o) P[c] += (o[c] - P[c]) * k; }, add = (o, k) => { for (const c in o) P[c] += o[c] * k; };
@@ -74,17 +74,20 @@ export async function createHero(loader, opts = {}) {
       const moving = s.grounded && sp > 0.35 && !s.sliding && !s.swim;
       A.move = damp(A.move, moving ? sm(0.2, 1.4, sp) : 0, 12, dt); A.run = damp(A.run, moving ? sm(3.2, 7.2, sp) : 0, 8, dt); A.sprint = damp(A.sprint, moving ? sm(8, 10.4, sp) : 0, 6, dt);
       A.air = damp(A.air, s.grounded || s.swim ? 0 : 1, 16, dt);
-      if (!api.freeze) A.phase += dt * TAU * clamp(1.2 + sp * 0.2, 0, 3.3) * (moving ? 1 : 0);
+      // step rate comes from distance covered: a planted foot travels back exactly as fast as the body moves, so it does not slide
+      { const r0 = sm(3.2, 7.2, sp), w0 = sm(0.2, 2.6, sp), s0 = sm(8, 10.4, sp); A.Az = lerp(lerp(0.09, 0.185, w0), 0.245, r0) + 0.03 * s0; A.stance = lerp(0.6, 0.38, r0) - 0.05 * s0; const f = clamp(sp * A.stance / (2 * A.Az), 0, 5.6); if (!api.freeze) A.phase += dt * TAU * f * (moving ? 1 : 0); }
       A.acc = damp(A.acc, clamp((sp - A.lastSp) / Math.max(dt, 1e-3), -40, 40), 9, dt); A.lastSp = sp;
       A.slide = damp(A.slide, s.sliding ? 1 : 0, 12, dt); A.skid = damp(A.skid, s.skid ? 1 : 0, 14, dt); A.glide = damp(A.glide, s.gliding ? 1 : 0, 10, dt);
       A.swim = damp(A.swim, s.swim ? 1 : 0, 8, dt); A.hang = damp(A.hang, s.hang ? 1 : 0, 7, dt); A.drive = damp(A.drive, s.driving ? 1 : 0, 9, dt);
       A.roll = damp(A.roll, clamp(-s.turn * 0.06, -0.28, 0.28) * A.move, 8, dt);
       if (s.sitting) A.idle = Math.min(A.idle, 30); if ((moving || !s.grounded || s.input) && !s.sitting) { if (A.sleep > 0.5) api.emote('surprised'); A.idle = 0; } else A.idle += dt;
       // squash & stretch spring: stretch on take-off, squash on landing, a wobble that rings out
-      if (s.justJumped) { A.sqV += 3.4; if (A.air > 0.4 && !s.flip) A.spinT = 0.0001; }
-      if (s.justLanded) { const hit = clamp(s.landSpeed / 16, 0.2, 1); A.land = hit; A.sqV -= 1.0 + hit * 3.0; A.leafZV -= 9; A.wobV += 2 + hit * 2; A.spinT = 0; }
+      // take-off: a quick squash first (the anticipation), which springs straight into a stretch
+      if (s.justJumped) { A.sq = Math.min(A.sq, -0.2); A.sqV = 1.5; A.jigV -= 1.2; if (A.air > 0.4 && !s.flip) A.spinT = 0.0001; }
+      if (s.justLanded) { const hit = clamp(s.landSpeed / 16, 0.2, 1); A.land = hit; A.sqV -= 1.6 + hit * 3.6; A.leafZV -= 9; A.wobV += 2 + hit * 2; A.jigV -= 0.5 + hit * 1.1; A.spinT = 0; }
+      A.jigV += (-A.jig * 190 - A.jigV * 9) * dt; A.jig = clamp(A.jig + A.jigV * dt, -0.06, 0.06);   // the belly and head settle a beat after the feet
       A.land = damp(A.land, 0, 6.5, dt);
-      A.sqV += (-A.sq * 230 - A.sqV * 14) * dt; A.sq = clamp(A.sq + A.sqV * dt, -0.2, 0.24);
+      A.sqV += (-A.sq * 230 - A.sqV * 14) * dt; A.sq = clamp(A.sq + A.sqV * dt, -0.26, 0.24);
       A.wobV += (-A.wob * 130 - A.wobV * 7.5) * dt; A.wob += A.wobV * dt;
       if (A.spinT > 0) { A.spinT += dt / 0.46; if (A.spinT >= 1) A.spinT = 0; }
       // emotes / idle behaviour
@@ -103,31 +106,33 @@ export async function createHero(loader, opts = {}) {
       A.blinkT -= dt; if (A.blinkT < 0) { A.blink = 0.13; A.blinkT = 1.8 + Math.random() * 3.6; if (Math.random() < 0.2) A.blinkT = 0.28; } A.blink -= dt;
 
       // ------------------------------------------------------------ build the pose
+      // Designed for this body: the jelly does the acting (squash, stretch, waddle, jiggle); the arms are soft stubs that swing
+      // front-to-back close to the body and only drift outward a little when the air pushes them. They never lift like wings.
       for (const c of CH) P[c] = 0;
       const ph = A.phase, M = A.move, R = A.run, SPT = A.sprint, cs = Math.cos(ph), sn = Math.sin(ph);
       const breathe = Math.sin(t * (2.1 - A.sleep * 0.9)), still = 1 - M;
-      // idle: breathing through the chest and arms, slow weight shift from foot to foot
+      // idle: the whole body breathes, weight drifts from foot to foot, arms hang and rise a hair with each breath
       const sh = Math.sin(t * 0.55 + A.shift) * still * (1 - A.sit);
-      add({ cx: breathe * 0.022, aLz: 0.05 + breathe * 0.035, aRz: 0.05 + breathe * 0.035, eLx: -0.1, eRx: -0.1, hz: sh * 0.045, hpx: sh * 0.014, cz: -sh * 0.06, nz: sh * 0.025, hpy: breathe * 0.006 }, 1);
-      // locomotion: hips lead, chest counter-rotates, arms swing against the legs with the hands trailing
-      const lean = M * (0.05 + 0.15 * R + 0.1 * SPT) + (s.grounded ? clamp(A.acc * 0.011, -0.2, 0.22) : 0);
-      const hipYaw = -cs * (0.1 + 0.1 * R) * M, swing = (0.42 + 0.5 * R + 0.15 * SPT) * M, bend = (0.12 + 0.85 * R) * M;
-      add({ hx: lean * 0.45, cx: lean * 0.7, nx: -lean * 0.75 + Math.sin(2 * ph - 1.3) * 0.035 * M, hy: hipYaw, cy: -hipYaw * 1.9, ny: hipYaw * 0.8,
-        hz: A.roll + sn * (0.055 - 0.02 * R) * M, hpx: sn * 0.012 * M, cz: -sn * 0.05 * M + A.roll * 0.5, nz: -A.roll * 0.6,
-        hpy: (-Math.cos(2 * ph - 0.6) * (0.016 + 0.03 * R) - 0.012 * R) * M,
-        aLx: cs * swing, aRx: -cs * swing, aLz: 0.2 * R * M, aRz: 0.2 * R * M,
-        eLx: -bend + Math.cos(ph - 0.7) * 0.28 * M, eRx: -bend - Math.cos(ph - 0.7) * 0.28 * M }, 1);
-      const stance = lerp(0.62, 0.4, R), Az = (0.06 + 0.085 * R + 0.03 * SPT), H = 0.04 + 0.075 * R + 0.03 * SPT;
-      for (const [f, o] of [['fL', 0], ['fR', 0.5]]) { let p = (ph / TAU + o) % 1, y, z, r;
-        if (p < stance) { const u = p / stance; y = 0; z = lerp(Az, -Az, u); r = u < 0.22 ? lerp(-0.32, 0, u / 0.22) : 0.5 * sm(0.55, 1, u); }
-        else { const u = (p - stance) / (1 - stance), ee = u * u * (3 - 2 * u); y = Math.sin(u * Math.PI) * H; z = lerp(-Az, Az, ee); r = lerp(0.5, -0.32, ee) + Math.sin(u * Math.PI) * 0.35 * R; }
+      add({ cx: breathe * 0.018, aLz: breathe * 0.03, aRz: breathe * 0.03, eLx: -0.08, eRx: -0.08, hz: sh * 0.05, hpx: sh * 0.016, cz: -sh * 0.06, nz: sh * 0.03 }, 1);
+      // locomotion: a waddle. Hips roll over the planted foot, the chest twists against them, arms swing against the legs
+      const lean = M * (0.04 + 0.2 * R + 0.1 * SPT) + (s.grounded ? clamp(A.acc * 0.011, -0.2, 0.22) : 0);
+      const hipYaw = -cs * (0.12 + 0.08 * R) * M, swing = (0.5 + 0.45 * R + 0.1 * SPT) * M, bend = (0.1 + 0.8 * R) * M, hit = 0.5 + 0.5 * Math.cos(2 * ph - 0.75);   // hit: 1 just after each foot lands
+      add({ hx: lean * 0.45, cx: lean * 0.7, nx: -lean * 0.8 + (hit - 0.5) * 0.05 * M, hy: hipYaw, cy: -hipYaw * 1.8, ny: hipYaw * 0.8,
+        hz: A.roll + sn * (0.1 - 0.05 * R) * M, hpx: sn * (0.022 - 0.01 * R) * M, cz: -sn * 0.04 * M + A.roll * 0.5, nz: -sn * 0.05 * M - A.roll * 0.6,
+        hpy: -hit * (0.028 + 0.03 * R) * M,
+        aLx: cs * swing, aRx: -cs * swing, aLz: 0.08 * R * M, aRz: 0.08 * R * M,
+        eLx: -bend + Math.cos(ph - 0.7) * 0.3 * M, eRx: -bend - Math.cos(ph - 0.7) * 0.3 * M }, 1);
+      // feet: planted on the ground for the whole stance (they travel back exactly as fast as the body travels forward), then a quick arc ahead
+      for (const [f, o] of [['fL', 0], ['fR', 0.5]]) { let p = (ph / TAU + o) % 1, y, z, r; const stance = A.stance, Az = A.Az, H = 0.045 + 0.06 * R + 0.02 * SPT;
+        if (p < stance) { const u = p / stance; y = 0; z = lerp(Az, -Az, u); r = u < 0.18 ? lerp(-0.22, 0, u / 0.18) : 0.38 * sm(0.6, 1, u); }
+        else { const u = (p - stance) / (1 - stance), ee = u * u * (3 - 2 * u); y = Math.sin(u * Math.PI) * H; z = lerp(-Az, Az, ee); r = lerp(0.38, -0.22, ee) + Math.sin(u * Math.PI) * 0.3 * R; }
         P[f + 'y'] = y * M; P[f + 'z'] = z * M; P[f + 'r'] = r * M; }
-      // jump: reach up on the way up, open out and tuck the feet on the way down, sink into the landing
-      const up = A.air * clamp(s.vy / 9, 0, 1), dn = A.air * clamp(-s.vy / 11, 0, 1), flut = Math.sin(t * 21) * 0.05 * dn;
-      to({ aLx: -0.85, aRx: -0.85, aLz: 0.5, aRz: 0.5, eLx: -0.45, eRx: -0.45, cx: -0.1, nx: -0.2, fLy: -0.015, fRy: -0.015, fLz: -0.05, fRz: -0.03, fLr: 0.65, fRr: 0.5 }, up);
-      to({ aLx: 0.1, aRx: 0.1, aLz: 0.9 + flut, aRz: 0.9 - flut, eLx: -0.1, eRx: -0.1, eLz: 0.3, eRz: 0.3, cx: 0.1, nx: 0.14, fLy: 0.06, fRy: 0.045, fLz: 0.035, fRz: 0.0, fLr: -0.3, fRr: -0.15, fLx: 0.02, fRx: 0.02 }, dn);
-      const air0 = A.air * (1 - up) * (1 - dn); add({ aLz: 0.35, aRz: 0.35, fLy: 0.03, fRy: 0.03 }, air0);
-      add({ hpy: -0.075, cx: 0.22, nx: -0.12, aLz: 0.55, aRz: 0.55, aLx: 0.25, aRx: 0.25, eLz: 0.3, eRz: 0.3, fLx: 0.022, fRx: 0.022 }, A.land);
+      // jump. Rising: arms trail down and back, toes point. Near the top: a small open "whee". Falling: the air lifts the arms a little, feet reach for the ground.
+      const up = A.air * clamp(s.vy / 8, 0, 1), dn = A.air * clamp(-s.vy / 10, 0, 1), top = A.air * (1 - up) * (1 - dn);
+      to({ aLx: 0.42, aRx: 0.42, aLz: -0.02, aRz: -0.02, eLx: 0.1, eRx: 0.1, cx: -0.07, nx: -0.14, fLy: -0.02, fRy: -0.02, fLz: -0.03, fRz: -0.015, fLr: 0.28, fRr: 0.2 }, up);
+      to({ aLx: -0.3, aRx: -0.3, aLz: 0.14, aRz: 0.14, eLz: 0.1, eRz: 0.1, eLx: -0.25, eRx: -0.25, nx: -0.05, fLy: 0.05, fRy: 0.04, fLz: 0.02, fRz: -0.01, fLx: 0.012, fRx: 0.012 }, top);
+      to({ aLx: -0.35, aRx: -0.35, aLz: 0.22, aRz: 0.22, eLz: 0.14, eRz: 0.14, eLx: -0.2, eRx: -0.2, cx: 0.07, nx: 0.12, fLy: 0.02, fRy: 0.01, fLz: 0.03, fRz: 0.0, fLr: -0.22, fRr: -0.12, fLx: 0.02, fRx: 0.02 }, dn);
+      add({ hpy: -0.05, cx: 0.16, nx: -0.1, aLz: 0.2, aRz: 0.2, aLx: 0.15, aRx: 0.15, eLz: 0.18, eRz: 0.18, fLx: 0.024, fRx: 0.024 }, A.land);
       // sitting (benches, long idles, the cart seat)
       to({ hx: -0.1, hpy: -0.03, aLx: -0.45, aRx: -0.45, aLz: 0.02, aRz: 0.02, eLx: -0.55, eRx: -0.55, fLy: 0.03, fRy: 0.03, fLz: 0.15, fRz: 0.15, fLr: -0.5, fRr: -0.5 }, A.sit * (1 - A.drive));
       const steer = s.steer || 0;
@@ -160,11 +165,12 @@ export async function createHero(loader, opts = {}) {
       if (A.sleep > 0.4) expr = 'sleepy'; else if (A.blink > 0 && (expr === 'neutral' || expr.startsWith('look'))) expr = 'blink';
       else if (expr === 'neutral' && Math.abs(A.lookY) > 0.3) expr = A.lookY > 0 ? 'look_l' : 'look_r';
       if (!s.grounded && !em && s.vy < -11 && !s.gliding && !s.hang) expr = 'surprised';
+      else if (!s.grounded && !em && !s.swim && A.air > 0.8 && Math.abs(s.vy) < 4.5 && expr === 'neutral') expr = 'happy';
       eyes.setL(expr); eyes.setR(expr === 'wink' ? 'happy' : expr);
 
       // ------------------------------------------------------------ whole-body: squash, hop, big pitches about the belly
       const hop = em === 'celebrate' ? Math.abs(Math.sin(et * 7.5)) * 0.3 * k : em === 'hop' ? Math.abs(Math.sin(et * 7)) * 0.2 * k : em === 'happy' || em === 'laugh' ? Math.abs(Math.sin(et * 11)) * 0.06 * k : 0;
-      const st = 1 + A.sq + A.air * clamp(Math.abs(s.vy) * 0.012, 0, 0.12) + breathe * (0.012 + A.sleep * 0.03) * still - A.sit * 0.06 - A.slide * 0.1;
+      const st = 1 + A.sq + A.air * clamp(Math.abs(s.vy) * 0.013, 0, 0.14) + breathe * (0.018 + A.sleep * 0.03) * still - A.sit * 0.06 - A.slide * 0.1 - (0.5 + 0.5 * Math.cos(2 * A.phase - 0.75)) * (0.03 + 0.035 * A.run) * A.move;
       const wide = 1 / Math.sqrt(Math.max(0.4, st));
       squash.scale.set(wide * (1 + A.wob * 0.045), st, wide * (1 - A.wob * 0.045));
       const swimGo = Math.min(1, 0.3 + sp * 0.3);
@@ -177,6 +183,7 @@ export async function createHero(loader, opts = {}) {
       rot('hips', S1('hx', 200, 22), S1('hy', 260, 24), S1('hz', 200, 22)); pos('hips', P.hpx, P.hpy, 0);
       rot('chest', S1('cx', 170, 19), S1('cy', 240, 24), S1('cz', 170, 19));
       rot('head', S1('nx', 130, 15), S1('ny', 150, 17), S1('nz', 120, 14));
+      pos('chest', 0, A.jig * 0.45, 0); pos('head', 0, A.jig * 0.75, 0);
       const hs = 1 + A.wob * 0.03; B.head.scale.set(hs, 1 / hs, hs);
       rot('armL', S1('aLx', 190, 16), 0, S1('aLz', 190, 16)); rot('armR', S1('aRx', 190, 16), 0, -S1('aRz', 190, 16));
       rot('handL', S1('eLx', 120, 11), 0, S1('eLz', 120, 11)); rot('handR', S1('eRx', 120, 11), 0, -S1('eRz', 120, 11));
@@ -185,9 +192,10 @@ export async function createHero(loader, opts = {}) {
       const tY = clamp(sp * 0.085, 0, 0.75) * (s.grounded ? 1 : 0.6), tZ = clamp(-s.vy * 0.05, -0.7, 0.8) - A.sleep * 0.5 + (em === 'sad' ? -0.5 * k : 0) + (em === 'surprised' || em === 'celebrate' ? 0.35 * k : 0);
       A.leafYV += ((tY - A.leafY) * 90 - A.leafYV * 7) * dt; A.leafY += A.leafYV * dt;
       A.leafZV += ((tZ - A.leafZ) * 110 - A.leafZV * 6.5) * dt; A.leafZ += A.leafZV * dt;
+      const tX = -clamp(sp * 0.045, 0, 0.42) * (s.grounded ? 1 : 0.5) - clamp(A.acc * 0.02, -0.35, 0.35); A.leafXV += ((tX - A.leafX) * 70 - A.leafXV * 6) * dt; A.leafX += A.leafXV * dt;
       const sw = Math.sin(t * 1.7) * 0.05 + Math.sin(ph * 2) * 0.07 * M;
       A.spin = (A.spin || 0) + dt * 26 * A.glide * (1 - A.hang);
-      rot('leaf1', 0, A.leafY * 0.35 + A.spin, A.leafZ * 0.3 + sw * 0.5 + A.glide * 0.25); rot('leaf2', 0, A.leafY * 0.45, A.leafZ * 0.45 + sw); rot('leaf3', 0, A.leafY * 0.5, A.leafZ * 0.55 + sw * 1.3);
+      rot('leaf1', A.leafX * 0.3, A.leafY * 0.35 + A.spin, A.leafZ * 0.3 + sw * 0.5 + A.glide * 0.25); rot('leaf2', A.leafX * 0.4, A.leafY * 0.45, A.leafZ * 0.45 + sw); rot('leaf3', A.leafX * 0.5, A.leafY * 0.5, A.leafZ * 0.55 + sw * 1.3);
     },
   };
   return api;

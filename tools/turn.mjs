@@ -1,11 +1,12 @@
-// node tools/turn.mjs out.png "pos=78,158" "yaw1,yaw2,..." [dist] [pitch] [cellW cellH] [pre-js]  -> one row of views around the hero
-import { createRequire } from 'module'; const R = createRequire('/opt/node22/lib/node_modules/'), { chromium } = R('playwright'), sharp = R('sharp');
-const [out, query = '', yaws = '0,0.9,1.57,3.14,-1.57', dist = 3, pitch = 0.1, w = 420, h = 520, pre = ''] = process.argv.slice(2);
+// node tools/turn.mjs out.png  -> the hero's key poses from the front, side and back (rows), to compare with the character sheet
+import { createRequire } from 'module'; import { execSync } from 'child_process';
+const { chromium } = createRequire('/opt/node22/lib/node_modules/')('playwright'); const out = process.argv[2] || 'shots/turn.png';
+const g = `speed:0,grounded:true,vy:0`, POSES = [['idle', `h.force={${g}}`, 70], ['walk A', `h.force={speed:2.6,grounded:true,vy:0};h.anim.phase=0.5`, 70], ['walk B', `h.force={speed:2.6,grounded:true,vy:0};h.anim.phase=2.2`, 70], ['run A', `h.force={speed:6.6,grounded:true,vy:0};h.anim.phase=0.4`, 70], ['run B', `h.force={speed:6.6,grounded:true,vy:0};h.anim.phase=2.0`, 70],
+  ['take-off squash', `h.force={speed:2,grounded:false,vy:10,justJumped:true}`, 1], ['rising', `h.force={speed:2,grounded:false,vy:8}`, 40], ['top', `h.force={speed:2,grounded:false,vy:0.5}`, 40], ['falling', `h.force={speed:2,grounded:false,vy:-9}`, 40], ['landing', `h.force={${g},justLanded:true,landSpeed:13}`, 4]];
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
-const p = await b.newPage({ viewport: { width: +w, height: +h } }); p.on('pageerror', (e) => console.log('ERR', String(e)));
-await p.goto('http://localhost:5173/?shot=1&' + query); await p.waitForFunction('window.game && window.game.ready && window.game.frames > 6', null, { timeout: 420000 });
-const wait = async (n = 6) => p.waitForFunction(`window.game.frames > ${await p.evaluate('window.game.frames')} + ${n}`, null, { timeout: 120000 });
-if (pre) { await p.evaluate(pre); await wait(10); }
-const imgs = [];
-for (const y of yaws.split(',')) { await p.evaluate(`{const c=game.ctl.cam;c.yaw=${y}+game.ctl.yaw;c.pitch=${pitch};c.dist=c.tDist=${dist};c.pos.set(0,0,0);}`); await wait(5); imgs.push(await p.screenshot()); }
-await sharp({ create: { width: w * imgs.length, height: +h, channels: 3, background: '#fff' } }).composite(imgs.map((input, i) => ({ input, left: i * w, top: 0 }))).png().toFile(out); await b.close();
+const p = await b.newPage({ viewport: { width: 380, height: 400 } }); p.on('pageerror', (e) => console.log('PAGEERR', (e.stack || String(e)).slice(0, 300)));
+await p.goto('http://localhost:5173/?shot=1&studio&notitle&nopost&face=0&dist=2.1&pitch=0.1'); await p.waitForFunction('window.game && window.game.ready && window.game.frames > 6', null, { timeout: 600000 });
+await p.evaluate(`game.world.visible=false;game.scene.add(game.hero.group);document.querySelector('#hud').style.display='none'`); let i = 0;
+for (const yaw of [0, 1.5708, 3.1416]) for (const [n, js, steps] of POSES) { await p.evaluate(`{const h=game.hero;h.freeze=true;h.anim.emote=null;h.anim.idle=0;h.anim.land=0;h.anim.sq=0;h.anim.sqV=0;h.force={speed:0,grounded:true,vy:0};for(let i=0;i<30;i++)h.update(1/60,game.ctl.state);${js};game.ctl.yaw=${yaw};for(let i=0;i<${steps};i++){h.update(1/60,game.ctl.state);if(h.force.justJumped||h.force.justLanded){h.force={...h.force,justJumped:false,justLanded:false}}}}`);
+  const f = await p.evaluate('game.frames'); await p.waitForFunction(`game.frames > ${f + 2}`, null, { timeout: 180000 }); await p.screenshot({ path: `/tmp/turn_${String(i++).padStart(2, '0')}.png` }); }
+await b.close(); execSync(`ffmpeg -v error -y -i /tmp/turn_%02d.png -vf "tile=${POSES.length}x3" -frames:v 1 ${out}`); console.log(POSES.map((q) => q[0]).join(' | '));
