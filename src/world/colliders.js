@@ -1,4 +1,4 @@
-import { heightAt } from './terrain.js';
+import { surfaceAt } from './terrain.js';
 // Simple world collision: circles (posts, trunks), boxes (walls) and walkable platforms (decks, steps, plaza paving).
 export const circles = [], boxes = [], platforms = [];
 export const addCircle = (x, z, r, top = 1e9) => { const c = { x, z, r, top, off: false }; circles.push(c); return c; };
@@ -6,7 +6,7 @@ export const addBox = (x, z, hw, hd, rotY = 0, top = 1e9) => { const b = { x, z,
 // platform: rectangle (rotated) or disc with a walkable top at height y; only stands in if you are above (y - step)
 export const addPlatform = (p) => { const o = { rotY: 0, ...p, c: Math.cos(p.rotY || 0), s: Math.sin(p.rotY || 0) }; platforms.push(o); return o; };
 export function groundAt(x, z, y = 1e9) {
-  let g = heightAt(x, z);
+  let g = surfaceAt(x, z);
   for (const p of platforms) {
     if (p.off) continue; let inside;
     if (p.r) inside = (x - p.x) ** 2 + (z - p.z) ** 2 < p.r * p.r;

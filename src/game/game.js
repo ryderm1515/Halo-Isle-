@@ -138,9 +138,10 @@ export async function initGame(G, loader) {
     A.cur?.update(dt);
     // nearest interactable
     let best = null, bd = 1e9; if (!hud.dialogOpen && !hud.journalOpen) for (const th of things) { const d = Math.hypot(hp.x - th.x, hp.z - th.z); if (d < th.r && d < bd && Math.abs((th.y ?? hp.y) - hp.y) < 3) { best = th; bd = d; } }
-    if (best) hud.prompt('E', typeof best.label === 'function' ? best.label() : best.label); else hud.prompt(null);
-    if (!hud.dialogOpen && input.interact && best && !G.busy) best.act();
-    input.interact = false;
+    if (G.ride) hud.prompt('E', G.ride.label); else if (best && !G.busy) hud.prompt('E', typeof best.label === 'function' ? best.label() : best.label); else hud.prompt(null);
+    if (input.interact && G.ride && !hud.dialogOpen) G.ride.exit(); else if (!hud.dialogOpen && input.interact && best && !G.busy) best.act();
+    input.interact = false; G.nearThing = best;
+    { let ln = null, ld = 5.5; for (const n of npcs) { const d = Math.hypot(n.x - hp.x, n.z - hp.z); if (d < ld) { ld = d; ln = n; } } if (ln) { let a = Math.atan2(ln.x - hp.x, ln.z - hp.z) - ctl.yaw; while (a > Math.PI) a -= 6.283; while (a < -Math.PI) a += 6.283; ctl.state.lookYaw = Math.abs(a) < 1.5 ? a : null; } else ctl.state.lookYaw = null; }
     for (const n of npcs) { if (n.ai) continue; const dx = hp.x - n.x, dz = hp.z - n.z, d = Math.hypot(dx, dz); if (d < 60) { if (d < 7) { let dy = Math.atan2(dx, dz) - n.h.group.rotation.y; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; n.h.group.rotation.y += dy * Math.min(1, dt * 5); if (t - n.waved > 25 && d < 5) { n.h.emote('wave'); n.waved = t; } } n.h.update(dt, n.st); n.h.anim.idle = Math.min(n.h.anim.idle, 5); } }
     for (const [name, sub, x, z, r] of areas) { if (Math.hypot(hp.x - x, hp.z - z) < r) { if (curArea !== name) { curArea = name; hud.area(name, sub); if (!S.areas[name]) { S.areas[name] = 1; S.coins += 10; hud.setCoins(S.coins); save(); hud.toast(`Discovered ${name}`, '+10 coins'); audio.good(); } } break; } else if (curArea === name && Math.hypot(hp.x - x, hp.z - z) > r + 12) curArea = null; }
     for (const id in shardMeshes) { const m = shardMeshes[id]; if (!m.visible) continue; m.rotation.y = t * 1.2; m.position.y += Math.sin(t * 2) * dt * 0.12; if (m.position.distanceTo(new T.Vector3(hp.x, hp.y + 0.5, hp.z)) < 1.9) giveShard(id); }

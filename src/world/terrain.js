@@ -64,6 +64,13 @@ export function grassAt(x, z, h = heightAt(x, z)) {
 }
 
 export const WORLD = 840, RES = 420;
+let HG = null;
+// height of the rendered terrain mesh (same triangles the eye sees), so feet never float or sink between grid points
+export function surfaceAt(x, z) {
+  if (!HG) return heightAt(x, z); const fx = (x / WORLD + 0.5) * RES, fz = (z / WORLD + 0.5) * RES; if (fx < 0 || fz < 0 || fx >= RES || fz >= RES) return heightAt(x, z);
+  const i = fx | 0, j = fz | 0, u = fx - i, v = fz - j, n = RES + 1, a = HG[(j * n + i) * 3 + 1], b = HG[(j * n + i + 1) * 3 + 1], c = HG[((j + 1) * n + i) * 3 + 1], d = HG[((j + 1) * n + i + 1) * 3 + 1];
+  return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
+}
 const SAND = new T.Color('#f7e2a8'), SANDW = new T.Color('#d8b77c'), G1 = new T.Color('#69c531'), G2 = new T.Color('#4aad2c'), G3 = new T.Color('#93d83e'),
   ROCK = new T.Color('#b0a086'), ROCK2 = new T.Color('#93866f'), PEAKC = new T.Color('#bca987'), SEAB = new T.Color('#e2d6a4'), PATHC = new T.Color('#cfc6ba');
 
@@ -72,7 +79,7 @@ export function buildTerrain() {
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = (i / RES - 0.5) * WORLD, z = (j / RES - 0.5) * WORLD, k = j * n + i; pos[k * 3] = x; pos[k * 3 + 1] = heightAt(x, z); pos[k * 3 + 2] = z; }
   const idx = new Uint32Array(RES * RES * 6); let q = 0;
   for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d; }
-  geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setIndex(new T.BufferAttribute(idx, 1)); geo.computeVertexNormals();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setIndex(new T.BufferAttribute(idx, 1)); geo.computeVertexNormals(); HG = pos;
   const nor = geo.attributes.normal.array, c = new T.Color();
   for (let k = 0; k < n * n; k++) {
     const x = pos[k * 3], h = pos[k * 3 + 1], z = pos[k * 3 + 2], ny = nor[k * 3 + 1], nz = noise(x * 0.03, z * 0.03), n2 = noise(x * 0.11 + 9, z * 0.11);

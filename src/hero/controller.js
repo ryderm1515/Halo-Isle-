@@ -86,6 +86,7 @@ export function createController(hero, camera) {
           else { chain = sinceLand < 0.3 && sp > 4 && chain < 2 ? chain + 1 : 0; vel.y = swim ? JUMPS[0] * 0.72 : JUMPS[chain]; if (chain === 2) flipT = 0.001; emit('jump', false, chain); }
           grounded = false; coyote = 0; buffer = 0; state.justJumped = true; airJumps = 1; state.sliding = false;
         } else if (airJumps > 0 && !swim) { vel.y = Math.max(vel.y, JUMPS[0] * 0.74); airJumps = 0; buffer = 0; state.justJumped = true; emit('jump', true); }
+        else if (api.onAirPress && !swim && !api.flight && !grounded) { buffer = 0; api.onAirPress(); }
       }
       if (flipT > 0) { flipT += dt / 0.62; if (flipT >= 1 || grounded) flipT = 0; } state.flip = flipT;
       if (!grounded && !api.flight) { vel.y -= G * dt * (vel.y > 0 && !input.jumpHeld ? 2.1 : vel.y < 0 ? 1.25 : 1); vel.y = Math.max(vel.y, -38); }
