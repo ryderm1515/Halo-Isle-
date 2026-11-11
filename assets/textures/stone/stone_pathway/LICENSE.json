@@ -1,0 +1,23 @@
+{
+ "asset": "stone_pathway",
+ "name": "Stone Pathway",
+ "source": "https://polyhaven.com/a/stone_pathway",
+ "api": "https://api.polyhaven.com/info/stone_pathway",
+ "authors": {
+  "Amal Kumar": "All"
+ },
+ "license": "CC0 1.0 (Poly Haven: all assets CC0, no attribution required, commercial use and redistribution allowed)",
+ "license_url": "https://polyhaven.com/license",
+ "dimensions_mm": [
+  2000,
+  2000
+ ],
+ "downloaded": "2026-11-10",
+ "resolution": "1k jpg",
+ "maps": {
+  "diff": "stone_pathway_diff_1k.jpg",
+  "nor_gl": "stone_pathway_nor_gl_1k.jpg",
+  "rough": "stone_pathway_rough_1k.jpg",
+  "ao": "stone_pathway_ao_1k.jpg"
+ }
+}

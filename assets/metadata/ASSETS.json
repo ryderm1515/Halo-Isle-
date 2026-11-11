@@ -1,0 +1,17 @@
+{
+ "hero": {"glb": "characters/hero/hero.glb", "source": "characters/hero/hero.blend", "script": "pipeline/blender/make_hero.py (headless bpy 5.2.3)",
+          "origin": "original, modeled from Ryder's character sheet", "height_m": 1.0, "with_leaf_m": 1.19, "tris": 27336,
+          "rig": "11 bones: root, body, head, arm.L/R, foot.L/R, eye.L/R, leaf, leaf.tip", "clips": ["Idle","IdleLook","Walk","Run","JumpStart","Air","Land","Wave","Celebrate"],
+          "runtime_material": "jelly shader in three.js (fresnel rim + core tint, no transmission); GLB carries a plain glossy PBR fallback", "license": "project-owned"},
+ "palm_a": {"glb": "environment/foliage/palm_a.glb", "source": "environment/foliage/palm.blend", "script": "pipeline/blender/make_palm.py", "origin": "original", "height_m": 5.9, "tris": 2202,
+            "collider": {"type": "capsule", "radius": 0.26}, "license": "project-owned"},
+ "palm_b": {"glb": "environment/foliage/palm_b.glb", "source": "environment/foliage/palm.blend", "script": "pipeline/blender/make_palm.py", "origin": "original", "height_m": 4.7, "tris": 2232,
+            "collider": {"type": "capsule", "radius": 0.26}, "license": "project-owned"},
+ "path_straight_4m": {"glb": "environment/terrain/path_straight_4m.glb", "source": "environment/terrain/path.blend", "made_in": "Ryder's Blender 5.2.2 via Blender MCP",
+            "size_m": [2.84, 0.072, 4.0], "collision": "walkable surface, +0.072 m over terrain, conforms to terrain at load", "texture": "textures/stone/stone_pathway", "license": "geometry project-owned; texture CC0"},
+ "path_curve_30deg": {"glb": "environment/terrain/path_curve_30deg.glb", "source": "environment/terrain/path.blend", "made_in": "Ryder's Blender 5.2.2 via Blender MCP",
+            "size_m": [3.67, 0.072, 4.53], "collision": "walkable surface", "texture": "textures/stone/stone_pathway", "license": "geometry project-owned; texture CC0"},
+ "textures/stone/stone_pathway": {"source": "https://polyhaven.com/a/stone_pathway", "author": "Amal Kumar", "license": "CC0 1.0", "license_url": "https://polyhaven.com/license",
+            "downloaded": "2026-11-10", "via": "Poly Haven public API from Ryder's Blender (MCP execute_code)", "maps": ["diff","nor_gl","rough","ao"], "resolution": "1k",
+            "adjusted": "stone_pathway_halo_basecolor.jpg: baked in Blender (desaturate 0.45, value 1.45, contrast -0.3, warm multiply #FFCCA3, AO 0.4); normal strength 0.6; tiled at 3.2 m"}
+}

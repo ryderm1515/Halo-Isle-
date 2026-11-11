@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden;background:#bfe6ff}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head><body><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { jellyMaterial, leafMaterial } from './jelly.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setPixelRatio(1); r.setSize(innerWidth, innerHeight); r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.95; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene();
+// gradient sky
+const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+  vertexShader: 'varying vec3 p; void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader: 'varying vec3 p; void main(){float h=clamp(p.y,0.,1.);gl_FragColor=vec4(mix(vec3(.80,.93,1.),vec3(.18,.52,.93),pow(h,.6)),1.);}' }));
+scene.add(sky);
+const pm = new THREE.PMREMGenerator(r); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = +(q.get("env")||0.35);
+scene.add(new THREE.HemisphereLight(0xcfeeff, 0x8fbf6a, 0.55));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.1); sun.position.set(4, 7, 5); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); sun.shadow.bias = -0.0004; sun.shadow.radius = 4;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.MeshStandardMaterial({ color: q.get('ground') || '#e9d7ad', roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; if (!q.has('noground')) scene.add(ground);
+const cam = new THREE.PerspectiveCamera(+(q.get('fov') || 30), innerWidth / innerHeight, 0.05, 500);
+const [cx, cy, cz, tx, ty, tz] = (q.get('cam') || '0,0.7,3.2,0,0.55,0').split(',').map(Number);
+cam.position.set(cx, cy, cz); cam.lookAt(tx, ty, tz);
+const loader = new GLTFLoader(); const mixers = [];
+const items = (q.get('glb') || '').split('|').filter(Boolean);
+window.report = [];
+await Promise.all(items.map(async (spec) => {
+  const [url, px = 0, py = 0, pz = 0, ry = 0, clip = '', t = 0] = spec.split(',');
+  const g = await loader.loadAsync(url); const o = g.scene;
+  o.position.set(+px, +py, +pz); o.rotation.y = +ry * Math.PI / 180;
+  o.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true;
+    if (m.material.name === 'Hero_Jelly') m.material = jellyMaterial({ vertexColors: false });
+    else if (m.material.name === 'Hero_Leaf') m.material = leafMaterial(); } });
+  scene.add(o);
+  const box = new THREE.Box3().setFromObject(o); const sz = box.getSize(new THREE.Vector3());
+  const mats=[];o.traverse(m=>m.isMesh&&mats.push(m.material.type+':'+m.material.name+':'+m.material.color.getHexString()));window.report.push({ mats, url, size: sz.toArray().map((v) => +v.toFixed(3)), min: box.min.toArray().map((v) => +v.toFixed(3)), clips: g.animations.map((a) => a.name) });
+  if (clip) { const mx = new THREE.AnimationMixer(o); const a = g.animations.find((c) => c.name === clip); if (a) { mx.clipAction(a).play(); mx.setTime(+t); mixers.push(mx); } }
+}));
+r.render(scene, cam); window.done = true;
+</script></body></html>

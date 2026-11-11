@@ -1,0 +1,30 @@
+{
+ "palm_a": {
+  "height": 5.9,
+  "collider": {
+   "type": "capsule",
+   "radius": 0.26,
+   "height": 5.6,
+   "offset": [
+    0,
+    0,
+    0
+   ]
+  },
+  "tris": 2202
+ },
+ "palm_b": {
+  "height": 4.7,
+  "collider": {
+   "type": "capsule",
+   "radius": 0.26,
+   "height": 4.4,
+   "offset": [
+    0,
+    0,
+    0
+   ]
+  },
+  "tris": 2232
+ }
+}

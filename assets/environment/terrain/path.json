@@ -1,0 +1,78 @@
+{
+ "Path_Straight_4m": {
+  "glb": "path_straight_4m.glb",
+  "bytes": 1125032,
+  "bounds_blender_m": [
+   [
+    -1.42,
+    0.0,
+    0.0
+   ],
+   [
+    1.42,
+    4.0,
+    0.072
+   ]
+  ],
+  "walk_surface": {
+   "type": "heightfield_from_mesh",
+   "top_m": 0.072,
+   "note": "walkable, step height 0.07 m; no wall collider"
+  },
+  "snap": {
+   "start": [
+    0,
+    0,
+    0
+   ],
+   "end_dir_deg": 0
+  },
+  "texture": "textures/stone/stone_pathway (CC0, Poly Haven, Amal Kumar)",
+  "reimport": {
+   "verts": 315,
+   "images": [
+    "stone_pathway_halo_basecolor.001",
+    "stone_pathway_rough_1k",
+    "stone_pathway_nor_gl_1k"
+   ]
+  }
+ },
+ "Path_Curve_30deg": {
+  "glb": "path_curve_30deg.glb",
+  "bytes": 1125048,
+  "bounds_blender_m": [
+   [
+    -1.42,
+    0.0,
+    0.0
+   ],
+   [
+    2.253,
+    4.53,
+    0.072
+   ]
+  ],
+  "walk_surface": {
+   "type": "heightfield_from_mesh",
+   "top_m": 0.072,
+   "note": "walkable, step height 0.07 m; no wall collider"
+  },
+  "snap": {
+   "start": [
+    0,
+    0,
+    0
+   ],
+   "end_dir_deg": 30
+  },
+  "texture": "textures/stone/stone_pathway (CC0, Poly Haven, Amal Kumar)",
+  "reimport": {
+   "verts": 315,
+   "images": [
+    "stone_pathway_halo_basecolor.002",
+    "stone_pathway_rough_1k.001",
+    "stone_pathway_nor_gl_1k.001"
+   ]
+  }
+ }
+}
