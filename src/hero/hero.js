@@ -3,7 +3,7 @@ import { makeEyeAtlas } from './eyes.js';
 import { sm, damp, clamp, lerp } from '../util/noise.js';
 
 export function jellyMaterial() {
-  const m = new T.MeshPhysicalMaterial({ color: '#44b2f9', roughness: 0.13, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: '#1e86ee', emissiveIntensity: 0.32, envMapIntensity: 1.5, sheen: 0.4, sheenColor: '#bfeaff', sheenRoughness: 0.4 });
+  const m = new T.MeshPhysicalMaterial({ color: '#50bafa', roughness: 0.13, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: '#1e86ee', emissiveIntensity: 0.32, envMapIntensity: 4.2, sheen: 0.4, sheenColor: '#bfeaff', sheenRoughness: 0.4 });
   m.onBeforeCompile = (s) => {
     s.fragmentShader = s.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
       { vec3 V=normalize(vViewPosition); float f=1.-clamp(dot(normalize(vNormal),V),0.,1.);

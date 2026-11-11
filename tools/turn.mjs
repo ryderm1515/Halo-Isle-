@@ -3,7 +3,7 @@ import { createRequire } from 'module'; const R = createRequire('/opt/node22/lib
 const [out, query = '', yaws = '0,0.9,1.57,3.14,-1.57', dist = 3, pitch = 0.1, w = 420, h = 520, pre = ''] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
 const p = await b.newPage({ viewport: { width: +w, height: +h } }); p.on('pageerror', (e) => console.log('ERR', String(e)));
-await p.goto('http://localhost:5173/?shot=1&' + query); await p.waitForFunction('window.game && window.game.ready && window.game.frames > 6', null, { timeout: 180000 });
+await p.goto('http://localhost:5173/?shot=1&' + query); await p.waitForFunction('window.game && window.game.ready && window.game.frames > 6', null, { timeout: 420000 });
 const wait = async (n = 6) => p.waitForFunction(`window.game.frames > ${await p.evaluate('window.game.frames')} + ${n}`, null, { timeout: 120000 });
 if (pre) { await p.evaluate(pre); await wait(10); }
 const imgs = [];

@@ -24,10 +24,10 @@ BPROF = [(0, .125), (.16, .128), (.225, .15), (.258, .195), (.272, .265), (.264,
 prof = smooth_profile(BPROF, 5)
 pieces = []
 b = lathe('Body', prof, 56); pieces.append(b)
-HC, HR = Vector((0, 0, .765)), (.3, .28, .245)
+HC, HR = Vector((0, 0, .762)), (.312, .29, .25)
 pieces.append(ellipsoid('Head', HC, HR, 56, 32))
-SH, HAND = Vector((.17, 0, .55)), Vector((.385, 0, .2))     # arm axis: shoulder (buried) -> tip of the teardrop
-def arm_r(t): return (.05 + .062 * sm(0, .62, t)) * (1 if t < .62 else math.sqrt(max(0, 1 - ((t - .62) / .38) ** 2)))
+SH, HAND = Vector((.16, 0, .56)), Vector((.4, 0, .2))     # arm axis: shoulder (buried) -> tip of the teardrop
+def arm_r(t): return (.056 + .064 * sm(0, .62, t)) * (1 if t < .62 else math.sqrt(max(0, 1 - ((t - .62) / .38) ** 2)))
 def teardrop(sx):
     bm = bmesh.new(); ax = (HAND - SH); e1 = Vector((ax.z, 0, -ax.x)).normalized(); e2 = Vector((0, 1, 0)); NR, NS = 22, 24; rings = []
     for i in range(NR + 1):
@@ -42,10 +42,10 @@ def teardrop(sx):
     me = bpy.data.meshes.new('Arm'); bm.to_mesh(me); bm.free(); o = bpy.data.objects.new('Arm', me); C.collection.objects.link(o); return o
 for sx in (1, -1):
     pieces.append(teardrop(sx))
-    f = ellipsoid('Foot', (0, 0, 0), (1, 1, 1), 36, 24); P = 2.5
+    f = ellipsoid('Foot', (0, 0, 0), (1, 1, 1), 36, 24); P = 2.25
     for v in f.data.vertices:
         n = v.co; k = (abs(n.x) ** P + abs(n.y) ** P + abs(n.z) ** P) ** (-1 / P)
-        v.co = Vector((.143 * sx + n.x * k * .134, -.012 + n.y * k * .19, .086 + n.z * k * .09))
+        v.co = Vector((.143 * sx + n.x * k * .134, -.012 + n.y * k * .19, .09 + n.z * k * .096))
     pieces.append(f)
 for o in C.scene.objects: o.select_set(o in pieces)
 C.view_layer.objects.active = b; bpy.ops.object.transform_apply(location=True, rotation=True, scale=True); bpy.ops.object.join()
@@ -55,6 +55,8 @@ bpy.ops.object.modifier_apply(modifier='fuse')
 m = body.modifiers.new('soft', 'SMOOTH'); m.factor = .5; m.iterations = 4
 bpy.ops.object.modifier_apply(modifier='soft')
 # keep the soles flat on the ground after smoothing
+top = max(v.co.z for v in body.data.vertices)
+for v in body.data.vertices: v.co *= 1.0 / top
 zmin = min(v.co.z for v in body.data.vertices)
 for v in body.data.vertices:
     v.co.z -= zmin
@@ -94,20 +96,20 @@ for v in body.data.vertices:
 Hd = Vector((math.cos(math.radians(14)), math.sin(math.radians(14)), 0)); EL = math.radians(15)
 AX = (Hd * math.cos(EL) + Vector((0, 0, 1)) * math.sin(EL)).normalized(); PERP = Vector((-Hd.y, Hd.x, 0)); N0 = AX.cross(PERP).normalized()
 if N0.z < 0: N0 = -N0
-ROLL = math.radians(44); WD = PERP * math.cos(ROLL) + N0 * math.sin(ROLL); NN = N0 * math.cos(ROLL) - PERP * math.sin(ROLL)
+ROLL = math.radians(56); WD = PERP * math.cos(ROLL) + N0 * math.sin(ROLL); NN = N0 * math.cos(ROLL) - PERP * math.sin(ROLL)
 LB, LLEN = Hd * .03 + Vector((0, 0, 1.105)), .37
 def leaf_curve(u): return LB + AX * (LLEN * u) + N0 * (.035 * math.sin(math.pi * u))
 bm = bmesh.new(); col = bm.loops.layers.color.new('Col'); LV = {}
 stem = [Vector((0, 0, .985)), Vector((-.004, 0, 1.045)), Hd * .008 + Vector((0, 0, 1.085)), LB + AX * .03]
 rings = []
 for i, p in enumerate(stem):
-    r = .026 - .002 * i; tg = (stem[min(i + 1, 3)] - stem[max(i - 1, 0)]).normalized(); e1 = tg.cross(Vector((0, 1, 0))).normalized(); e2 = tg.cross(e1)
+    r = .031 - .002 * i; tg = (stem[min(i + 1, 3)] - stem[max(i - 1, 0)]).normalized(); e1 = tg.cross(Vector((0, 1, 0))).normalized(); e2 = tg.cross(e1)
     rings.append([bm.verts.new(p + (e1 * math.cos(a) + e2 * math.sin(a)) * r) for a in (2 * math.pi * k / 12 for k in range(12))])
 for ra, rb in zip(rings, rings[1:]):
     for k in range(12): bm.faces.new((ra[k], ra[(k + 1) % 12], rb[(k + 1) % 12], rb[k]))
 NU, NT = 26, 18; lr = []
 for i in range(NU + 1):
-    u = i / NU; c = leaf_curve(u); a_ = .095 * (math.sin(math.pi * min(1, u ** .72)) ** .78) * (1 - .12 * u) + .004; b_ = a_ * .5 + .004
+    u = i / NU; c = leaf_curve(u); a_ = .1 * (math.sin(math.pi * min(1, u ** .72)) ** .78) * (1 - .12 * u) + .004; b_ = a_ * .62 + .004
     ring = []
     for k in range(NT):
         th = 2 * math.pi * k / NT; cs, sn = math.cos(th), math.sin(th)

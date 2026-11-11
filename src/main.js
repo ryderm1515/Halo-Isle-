@@ -4,6 +4,7 @@ import { buildTerrain, heightAt } from './world/terrain.js';
 import { buildWater } from './world/water.js';
 import { buildSky, SUN_DIR } from './world/sky.js';
 import { SPOTS } from './world/layout.js';
+import { groundAt } from './world/colliders.js';
 import { createHero } from './hero/hero.js';
 import { createController, bindPointer } from './hero/controller.js';
 
@@ -17,9 +18,9 @@ const camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.12, 6000)
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 const sky = buildSky(scene, renderer);
-const sun = new T.DirectionalLight('#fff1d6', 2.6); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
-const SH = 46; Object.assign(sun.shadow.camera, { left: -SH, right: SH, top: SH, bottom: -SH, near: 1, far: 400 }); scene.add(sun, sun.target);
-scene.add(new T.HemisphereLight('#bfe2ff', '#86c46a', 0.95));
+const sun = new T.DirectionalLight('#fff0d2', 3.0); sun.castShadow = true; sun.shadow.mapSize.set(SHOT ? 2048 : 4096, SHOT ? 2048 : 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+sun.shadow.radius = 2.2; const SH = 40; Object.assign(sun.shadow.camera, { left: -SH, right: SH, top: SH, bottom: -SH, near: 1, far: 400 }); sun.shadow.camera.updateProjectionMatrix(); scene.add(sun, sun.target);
+scene.add(new T.HemisphereLight('#bfe2ff', '#9fc78a', 1.0));
 const terrain = buildTerrain(); scene.add(terrain.mesh);
 const water = buildWater(terrain.depthTex, terrain.depthSize); scene.add(water.mesh);
 
@@ -28,6 +29,9 @@ const G = (window.game = { scene, camera, renderer, T, heightAt, SPOTS, ready: f
 const hero = await createHero(loader); scene.add(hero.group);
 const ctl = createController(hero, camera); bindPointer(canvas);
 G.hero = hero; G.ctl = ctl;
+// soft contact shadow under the hero so he always sits on the ground
+const blob = new T.Mesh(new T.PlaneGeometry(1.0, 1.0).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0.3, color: '#0a2a45', map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 31); g.fillStyle = '#000'; g.fillRect(0, 0, 64, 64); gr.addColorStop(0, '#fff'); gr.addColorStop(0.5, '#777'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new T.CanvasTexture(c); return t; })(), alphaMap: null }));
+blob.material.alphaMap = blob.material.map; blob.material.map = null; blob.renderOrder = 2; scene.add(blob); G.blob = blob;
 const spawn = Q.get('pos')?.split(',').map(Number) || [SPOTS.plaza.x, SPOTS.plaza.z];
 ctl.teleport(spawn[0], spawn[1]); ctl.yaw = +(Q.get('face') ?? 0);
 if (Q.has('yaw')) ctl.cam.yaw = +Q.get('yaw'); if (Q.has('pitch')) ctl.cam.pitch = +Q.get('pitch'); if (Q.has('dist')) ctl.cam.dist = ctl.cam.tDist = +Q.get('dist');
@@ -41,6 +45,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   ctl.update(dt);
   for (const s of G.systems) s(dt, G);
+  { const gy = groundAt(ctl.pos.x, ctl.pos.z, ctl.pos.y + 0.3), air = Math.max(0, ctl.pos.y - gy); blob.position.set(ctl.pos.x, Math.max(gy, -0.02) + 0.03, ctl.pos.z); const k = 1 / (1 + air * 0.55); blob.scale.setScalar(k); blob.material.opacity = 0.3 * k; blob.visible = gy > -0.3; }
   sun.target.position.copy(ctl.pos); sun.position.copy(ctl.pos).addScaledVector(SUN_DIR, 160); sun.target.updateMatrixWorld();
   sky.update(dt, camera.position); water.update(dt, camera.position);
   renderer.render(scene, camera); G.frames++;

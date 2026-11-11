@@ -1,0 +1,17 @@
+{
+ "id": "aerial_grass_rock",
+ "source": "https://polyhaven.com/a/aerial_grass_rock",
+ "authors": [
+  "Rob Tuytel"
+ ],
+ "license": "CC0 1.0",
+ "license_url": "https://polyhaven.com/license",
+ "downloaded": "2026-11-10",
+ "maps": [
+  "diff",
+  "nor_gl",
+  "rough",
+  "ao"
+ ],
+ "resolution": "1k"
+}

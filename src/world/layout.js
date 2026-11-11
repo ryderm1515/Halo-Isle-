@@ -12,3 +12,11 @@ export const SPOTS = {
   falls: { x: 52, z: 104 },                      // waterfall off the first plateau, behind the plaza
   lake: { x: 44, z: 58, h: 36.6 },
 };
+
+// Footpaths (x, z). Heights are taken from the land at each node, so paths roll with the terrain but stay smooth.
+export const PATHS = [
+  { w: 2.6, pts: [[78, 118], [70, 104], [58, 100]] },                                   // plaza -> waterfall pool
+  { w: 2.6, pts: [[62, 196], [48, 208], [34, 214]] },                                   // plaza -> beach
+  { w: 2.4, pts: [[120, 150], [150, 128], [172, 92], [180, 56], [176, 24]] },           // plaza -> ruins (east)
+  { w: 2.4, pts: [[36, 160], [-10, 172], [-70, 170], [-130, 142], [-190, 104], [-236, 66], [-270, 46]] },   // plaza -> lighthouse (west coast)
+];

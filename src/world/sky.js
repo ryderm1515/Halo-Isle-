@@ -15,9 +15,9 @@ export function buildSky(scene, renderer) {
   // environment map from the sky itself (plus a soft white floor bounce) so glossy things have something to reflect
   const envScene = new T.Scene(); envScene.add(new T.Mesh(sky.geometry, mat));
   for (const [x, y, z, sz, i] of [[900, 1500, 900, 900, 9], [-1400, 900, 300, 700, 3.5], [200, 700, -1500, 800, 2.5]]) { const b = new T.Mesh(new T.SphereGeometry(sz, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(i, i, i) })); b.position.set(x, y, z); envScene.add(b); }
-  for (const a of [0.5, 2.3, 4.2]) { const b = new T.Mesh(new T.BoxGeometry(260, 1500, 260), new T.MeshBasicMaterial({ color: new T.Color(4, 4, 4) })); b.position.set(Math.cos(a) * 2200, 900, Math.sin(a) * 2200); envScene.add(b); }
-  { const fl = new T.Mesh(new T.CircleGeometry(2900, 24).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#8fd66a' })); fl.position.y = -60; envScene.add(fl); }
-  const pm = new T.PMREMGenerator(renderer); const env = pm.fromScene(envScene, 0.02, 1, 5000).texture; scene.environment = env; pm.dispose();
+  for (const a of [0.5, 2.3, 4.2]) { const b = new T.Mesh(new T.BoxGeometry(170, 1700, 170), new T.MeshBasicMaterial({ color: new T.Color(7, 7, 7) })); b.position.set(Math.cos(a) * 2200, 900, Math.sin(a) * 2200); envScene.add(b); }
+  { const fl = new T.Mesh(new T.CircleGeometry(2900, 24).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#bfe0f2' })); fl.position.y = -60; envScene.add(fl); }
+  const pm = new T.PMREMGenerator(renderer); const env = pm.fromScene(envScene, 0.02, 1, 5000).texture; scene.environment = env; scene.environmentIntensity = 0.3; pm.dispose();
   // puffy clouds: clusters of soft spheres, lit from above
   const cmat = new T.MeshLambertMaterial({ color: '#ffffff', emissive: '#bcd9f7', emissiveIntensity: 0.62, fog: false });
   const r = rng(77), geo = new T.IcosahedronGeometry(1, 3), clouds = new T.Group(), dummy = new T.Object3D(), N = 46, per = 9, inst = new T.InstancedMesh(geo, cmat, N * per); let k = 0;
