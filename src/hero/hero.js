@@ -112,6 +112,8 @@ export async function createHero(loader, opts = {}) {
       else if (em === 'love') { hz += 0.18 * k; aLx -= 1.0 * k; aRx -= 1.0 * k; aLz += 0.3 * k; aRz += 0.3 * k; expr = 'heart'; }
       else if (em === 'sad') { hx += 0.45 * k; bx += 0.12 * k; aLz -= 0.1 * k; expr = 'sad'; }
       else if (em === 'determined') { bx += 0.1 * k; aLz += 0.5 * k; aRz += 0.5 * k; aLx -= 0.7 * k; aRx -= 0.7 * k; expr = 'angry'; }
+      A.swim = damp(A.swim || 0, s.swim ? 1 : 0, 8, dt); if (A.swim > 0.02) { const sw2 = t * (4 + sp * 0.8); aLx = lerp(aLx, -1.3 + Math.sin(sw2) * 1.1, A.swim); aRx = lerp(aRx, -1.3 + Math.sin(sw2 + Math.PI) * 1.1, A.swim); aLz = lerp(aLz, 0.5, A.swim); aRz = lerp(aRz, 0.5, A.swim); bx += (0.55 + (s.under ? 0.5 : 0)) * A.swim * Math.min(1, 0.3 + sp * 0.3); hx -= 0.45 * A.swim * Math.min(1, 0.3 + sp * 0.3); }
+      if (s.hang) { aLz = 2.2; aRz = 2.2; aLx = -0.3; aRx = -0.3; bx += 0.9; hx -= 0.7; expr = 'happy'; }
       if (A.slide > 0.02) { aLx = lerp(aLx, 0.9, A.slide); aRx = lerp(aRx, 0.9, A.slide); aLz = lerp(aLz, 0.5, A.slide); aRz = lerp(aRz, 0.5, A.slide); hx += 0.5 * A.slide; if (s.sliding) expr = 'happy'; }
       if (A.skid > 0.02) { aLz = lerp(aLz, 0.9, A.skid); aRz = lerp(aRz, 0.9, A.skid); hx += 0.2 * A.skid; }
       A.glide = damp(A.glide || 0, s.gliding ? 1 : 0, 12, dt); if (A.glide > 0.02) { aLz = lerp(aLz, 1.45, A.glide); aRz = lerp(aRz, 1.45, A.glide); aLx = lerp(aLx, 0.2, A.glide); aRx = lerp(aRx, 0.2, A.glide); bx += 0.3 * A.glide; hx -= 0.25 * A.glide; if (s.gliding) expr = 'happy'; }

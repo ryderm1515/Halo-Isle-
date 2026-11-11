@@ -82,10 +82,20 @@ def shop(name, wall, aw1, aw2, w=9.0, floors=2, roof='flat'):
         x = (i - (n - 1) / 2) * bw
         if i == 1: p += [box((1.7, .16, 2.5), (x, -d / 2, 1.65), 'M_GlassBlue', .0), box((1.9, .2, .12), (x, -d / 2 - .02, 2.95), 'M_White', .02), box((.1, .2, 2.5), (x, -d / 2 - .02, 1.65), 'M_White', 0)]
         else: p += [box((bw - .7, .16, 1.8), (x, -d / 2, 1.9), 'M_GlassBlue', .0), box((bw - .5, .26, .12), (x, -d / 2 - .03, .98), 'M_White', .02), box((bw - .5, .2, .1), (x, -d / 2 - .02, 2.83), 'M_White', .02), box((.08, .2, 1.8), (x, -d / 2 - .02, 1.9), 'M_White', 0)]
-    ns = 10; sw = (w + .4) / ns                                                    # striped awning with a scalloped valance
+    # awning: a single sloped canopy with painted stripes, scalloped valance, side cheeks and two brackets
+    bm = bmesh.new(); col = bm.loops.layers.color.new('Col'); ns = 10; aw = w - .5; y0, y1, z0, z1 = -d / 2 - .02, -d / 2 - 1.75, 3.2, 2.62
+    cA, cB = hexc(PREVIEW[aw1]), hexc(PREVIEW[aw2])
+    def quad(vs, c):
+        f = bm.faces.new([bm.verts.new(v) for v in vs])
+        for lp in f.loops: lp[col] = (*c, 1)
     for i in range(ns):
-        x = (i - (ns - 1) / 2) * sw; m = aw1 if i % 2 == 0 else aw2
-        p += [box((sw, 1.9, .06), (x, -d / 2 - .85, 3.02), m, .0, rot=(-.33, 0, 0)), box((sw, .05, .34), (x, -d / 2 - 1.74, 2.58), m, .0)]
+        xa, xb = -aw / 2 + aw * i / ns, -aw / 2 + aw * (i + 1) / ns; c = cA if i % 2 == 0 else cB
+        quad(((xa, y0, z0), (xb, y0, z0), (xb, y1, z1), (xa, y1, z1)), c)
+        for k in range(6):                                       # scallop: a little fan hanging from the front edge
+            t0, t1 = k / 6, (k + 1) / 6; xm0, xm1 = xa + (xb - xa) * t0, xa + (xb - xa) * t1; quad(((xm0, y1, z1), (xm1, y1, z1), (xm1, y1, z1 - .3 * math.sin(pi * t1) ** .6), (xm0, y1, z1 - .3 * math.sin(pi * t0) ** .6)), c)
+    for sx in (-1, 1): quad(((sx * aw / 2, y0, z0), (sx * aw / 2, y1, z1), (sx * aw / 2, y0, z1 - .05)), cA)
+    cv = obj('Awning', bm, 'M_VcolCloth', smooth=False); sol = cv.modifiers.new('t', 'SOLIDIFY'); sol.thickness = .04; C.view_layer.objects.active = cv; bpy.ops.object.modifier_apply(modifier='t'); p.append(cv)
+    for sx in (-1, 1): p += [tube([(sx * (aw / 2 - .15), y0, z1 - .1), (sx * (aw / 2 - .15), y1 + .1, z1 + .02)], .03, 'M_White', 6), tube([(sx * (aw / 2 - .15), y0, z1 - .7), (sx * (aw / 2 - .15), y1 + .5, z1 + .1)], .025, 'M_White', 6)]
     for f in range(1, floors):
         z = f * fh
         for i in range(n):
