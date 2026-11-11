@@ -13,7 +13,7 @@ export async function initGame(G, loader) {
   ctl.waters = PONDS; hero.setTint(S.tint); G.S = S; G.input = input;
   initCollect(G);
   on('jump', () => audio.jump()); on('land', (v, wet) => { if (wet) audio.splash(); else if (v > 6) audio.land(); if (wet) G.sparkle(ctl.pos.x, Math.max(ctl.pos.y, 0) + 0.2, ctl.pos.z, 10, 2.5); }); on('glide', (o) => audio.glide(o));
-  addEventListener('keydown', (e) => { if (e.code === 'KeyN') hud.toast(audio.toggle() ? 'Sound off' : 'Sound on'); if (hud.dialogOpen && !e.repeat && (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE')) { e.preventDefault(); audio.ui(); hud.advance?.(); input.interact = false; input.jump = false; } if (e.code === 'Tab') { e.preventDefault(); toggleJournal(); } if (e.code === 'Escape' && hud.journalOpen) toggleJournal(); });
+  addEventListener('keydown', (e) => { if (e.code === 'KeyN') hud.toast(audio.toggle() ? 'Sound off' : 'Sound on'); if (hud.dialogOpen && !e.repeat && (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE')) { e.preventDefault(); audio.ui(); hud.advance?.(); input.interact = false; input.jump = false; } if (e.code === 'Tab') { e.preventDefault(); if (!G.inTitle) toggleJournal(); } if (e.code === 'Escape' && hud.journalOpen) toggleJournal(); });
 
   // ------------------------------------------------------------------ interactables
   const things = []; const thing = (o) => (things.push(o), o); G.things = things;
@@ -123,16 +123,16 @@ export async function initGame(G, loader) {
     ['Lighthouse Cape', 'The western edge', L.x, L.z, 42], ['Wind Ridge', 'Where the breeze never stops', SPOTS.windRidge.x, SPOTS.windRidge.z, 46], ['Stargazer Hill', 'Home of the observatory', SPOTS.observatory.x, SPOTS.observatory.z, 28], ['Halo Peak', 'Under the ring of light', PEAK.x, PEAK.z, 30]];
   let curArea = null; G.areaTotal = areas.length;
   // ------------------------------------------------------------------ journal (Tab): progress, activities, tints
-  function toggleJournal() { if (hud.journalOpen) { hud.journal(null); ctl.locked = hud.dialogOpen; return; } audio.ui(); ctl.locked = true;
+  function toggleJournal() { if (hud.journalOpen) { hud.journal(null); ctl.locked = hud.dialogOpen; return; } if (G.uiBusy?.()) return; G.freeCursor?.(); audio.ui(); ctl.locked = true;
     const med = (id) => MED[S.medals[id] || 0] || '—';
-    hud.journal(`<h2>Island Journal</h2><div class="grid"><div class="card">💠 Halo Shards<small>${shardN()} of 5 returned</small></div><div class="card">★ Sun Stars<small>${count(S.stars)} of ${G.starTotal} found</small></div><div class="card">● Halo Coins<small>${S.coins} in your pocket</small></div><div class="card">🗺 Places<small>${count(S.areas)} of ${areas.length} discovered</small></div></div>
+    hud.journal(`<div class="grid"><div class="card">💠 Halo Shards<small>${shardN()} of 5 returned</small></div><div class="card">★ Sun Stars<small>${count(S.stars)} of ${G.starTotal} found</small></div><div class="card">● Halo Coins<small>${S.coins} in your pocket</small></div><div class="card">🗺 Places<small>${count(S.areas)} of ${areas.length} discovered</small></div></div>
       <h3>ACTIVITIES</h3><div class="grid">${G.activities.map(([id, n, where]) => `<div class="card">${med(id)} ${n}<small>${where}${S.best[id] ? ` · best ${id === 'bubble' ? S.best[id] : fmt(S.best[id])}` : ''}</small></div>`).join('')}</div>
       <h3>ABILITIES</h3><div class="grid"><div class="card">Double Hop<small>Jump again in the air</small></div><div class="card ${S.abilities.glide ? '' : 'lock'}">Leaf Glide<small>${S.abilities.glide ? 'Hold Space while falling' : 'Return a halo shard to earn it'}</small></div></div>
-      <h3>JELLY TINTS</h3><div class="grid">${Object.entries(TINTS).map(([k, t]) => `<div class="card"><span class="sw" style="background:${t[0]}"></span>${t[2]}<button data-tint="${k}">${S.tint === k ? 'Wearing' : S.owned[k] ? 'Wear' : `${t[3]} coins`}</button></div>`).join('')}</div>
-      <h3>PLACES</h3><div class="grid">${areas.map(([n, sub]) => `<div class="card ${S.areas[n] ? '' : 'lock'}">${S.areas[n] ? n : '???'}<small>${S.areas[n] ? sub : 'Not yet discovered'}</small></div>`).join('')}</div><p style="position:relative;opacity:.7;font-weight:700">Tab or Esc to close</p>`);
-    hud.journalEl.querySelectorAll('button[data-tint]').forEach((b) => (b.onclick = () => { const k = b.dataset.tint, cost = TINTS[k][3]; if (!S.owned[k]) { if (S.coins < cost) { audio.bad(); return; } S.coins -= cost; S.owned[k] = 1; hud.setCoins(S.coins); audio.fanfare(); } else audio.ui(); S.tint = k; hero.setTint(k); save(); toggleJournal(); toggleJournal(); })); }
+      <h3>WARDROBE</h3><div class="grid"><div class="card">Tints, leaves and hats<small>Press <b>V</b> or visit Jelly Jo and Brim in the plaza</small></div></div>
+      <h3>PLACES</h3><div class="grid">${areas.map(([n, sub]) => `<div class="card ${S.areas[n] ? '' : 'lock'}">${S.areas[n] ? n : '???'}<small>${S.areas[n] ? sub : 'Not yet discovered'}</small></div>`).join('')}</div>`);
+    if (0) hud.journalEl.querySelectorAll('button[data-tint]').forEach((b) => (b.onclick = () => { const k = b.dataset.tint, cost = TINTS[k][3]; if (!S.owned[k]) { if (S.coins < cost) { audio.bad(); return; } S.coins -= cost; S.owned[k] = 1; hud.setCoins(S.coins); audio.fanfare(); } else audio.ui(); S.tint = k; hero.setTint(k); save(); toggleJournal(); toggleJournal(); })); }
   // ------------------------------------------------------------------ per-frame: prompts, NPC life, areas, story triggers
-  let t = 0; hud.setMarkers([...things.filter((x) => x.marker).map((x) => ({ x: x.x, z: x.z, color: x.marker })), ...npcs.map((n) => ({ x: n.x, z: n.z, color: '#ffffff' }))]);
+  let t = 0; G.refreshMarkers = () => hud.setMarkers([...things.filter((x) => x.marker).map((x) => ({ x: x.x, z: x.z, color: x.marker, shape: x.kind === 'portal' ? 'sq' : 'tri', name: x.name, kind: x.kind || 'activity' })), ...npcs.map((n) => ({ get x() { return n.x; }, get z() { return n.z; }, color: '#ffffff', r: 2.4, name: n.name, kind: 'islander' })), ...lifts.filter((l) => !l.off).map((l) => ({ x: l.x, z: l.z, color: '#9fe9ff', shape: 'sq', name: 'Breeze lift', kind: 'lift' }))]); G.refreshMarkers();
   G.systems.push((dt) => {
     t += dt; S.playSeconds += dt; liftMat.uniforms.t.value = t; const hp = ctl.pos;
     A.cur?.update(dt);
@@ -145,7 +145,7 @@ export async function initGame(G, loader) {
     for (const [name, sub, x, z, r] of areas) { if (Math.hypot(hp.x - x, hp.z - z) < r) { if (curArea !== name) { curArea = name; hud.area(name, sub); if (!S.areas[name]) { S.areas[name] = 1; S.coins += 10; hud.setCoins(S.coins); save(); hud.toast(`Discovered ${name}`, '+10 coins'); audio.good(); } } break; } else if (curArea === name && Math.hypot(hp.x - x, hp.z - z) > r + 12) curArea = null; }
     for (const id in shardMeshes) { const m = shardMeshes[id]; if (!m.visible) continue; m.rotation.y = t * 1.2; m.position.y += Math.sin(t * 2) * dt * 0.12; if (m.position.distanceTo(new T.Vector3(hp.x, hp.y + 0.5, hp.z)) < 1.9) giveShard(id); }
     audio.setSea(Math.max(0, 1 - Math.max(0, hp.y) / 14) * Math.max(0, 1 - Math.abs(Math.hypot(hp.x, hp.z) - 250) / 90));
-    hud.update(hp.x, hp.z, ctl.yaw);
+    hud.update(hp.x, hp.z, ctl.yaw); if (G.time) { const p = G.time.phase; hud.setClock(p < 0.25 ? 'Midday' : p < 0.56 ? 'Afternoon' : p < 0.7 ? 'Sunset' : p < 0.92 ? 'Night' : 'Dawn'); }
   });
-  if (!S.flags.intro) { S.flags.intro = 1; save(); setTimeout(() => hud.area('Halo Isle', 'A resort island under a ring of light'), 900); }
+
 }

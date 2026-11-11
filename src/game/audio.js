@@ -11,7 +11,9 @@ function music() { if (!ctx || st.muted) return; const now = ctx.currentTime; wh
 export const audio = {
   start() { if (started) return; init(); if (!ctx) return; started = true; ctx.resume(); beds.sea = noiseBed(420, 0.6, 0.0, 0.11); beds.wind = noiseBed(900, 0.4, 0.012, 0.07); nextT = ctx.currentTime + 0.2; setInterval(music, 120); },
   setSea(v) { if (beds.sea) beds.sea.gain.setTargetAtTime(v * 0.07, ctx.currentTime, 0.6); },
-  toggle() { st.muted = !st.muted; if (master) master.gain.value = st.muted ? 0 : 0.55; return st.muted; },
+  setVolume(v) { st.vol = v; if (master && !st.muted) master.gain.value = 0.55 * v; },
+  setMusic(v) { if (musicGain) musicGain.gain.value = 0.16 * v; st.music = v; },
+  toggle() { st.muted = !st.muted; if (master) master.gain.value = st.muted ? 0 : 0.55 * (st.vol ?? 1); return st.muted; },
   coin(k = 0) { if (!ctx) return; const t = ctx.currentTime, f = 880 * Math.pow(2, (k % 8) / 12); tone(f, t, 0.12, 'triangle', 0.16); tone(f * 1.5, t + 0.06, 0.2, 'sine', 0.12); },
   star() { if (!ctx) return; const t = ctx.currentTime; [0, 4, 7, 12, 16].forEach((n, i) => tone(523.25 * Math.pow(2, n / 12), t + i * 0.08, 0.45, 'triangle', 0.16)); },
   jump() { if (!ctx) return; tone(300, ctx.currentTime, 0.16, 'sine', 0.12, master, 2.1); },

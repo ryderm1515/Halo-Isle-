@@ -1,6 +1,6 @@
 // Save data + a tiny event bus. Everything the player earns lives here and persists in the browser.
 const KEY = 'halo-isle-save-v1';
-const fresh = () => ({ coins: 0, got: {}, shards: {}, stars: {}, medals: {}, best: {}, areas: {}, abilities: { glide: false }, tint: 'sky', owned: { sky: true }, flags: {}, playSeconds: 0 });
+const fresh = () => ({ coins: 0, got: {}, shards: {}, stars: {}, medals: {}, best: {}, areas: {}, abilities: { glide: false }, tint: 'sky', owned: { sky: true, mint: true, peach: true, rose: true }, flags: {}, playSeconds: 0, hat: 'none', leaf: 'green', ownedHats: { none: true }, ownedLeaves: { green: true }, coinStyle: 'coins', settings: { vol: 1, music: 1, sens: 1, invertY: false, quality: 'high', waypoints: true, dayMinutes: 5 }, track: null });
 export const S = fresh();
 try { const raw = localStorage.getItem(KEY); if (raw && !new URLSearchParams(location.search).has('fresh')) Object.assign(S, fresh(), JSON.parse(raw)); } catch (e) { /* storage unavailable: play without saving */ }
 let dirty = false; export const save = () => (dirty = true);

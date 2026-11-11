@@ -4,6 +4,20 @@ import { makeEyeAtlas } from './eyes.js';
 import { sm, damp, clamp, lerp } from '../util/noise.js';
 
 export const TINTS = { sky: ['#5fc4fb', '#2f9cf5', 'Sky Blue', 0], mint: ['#63e6b4', '#1fbf88', 'Mint', 60], peach: ['#ffb38a', '#ff8a5c', 'Peach', 60], grape: ['#b79bff', '#8a63f0', 'Grape', 90], lemon: ['#ffe566', '#f5c518', 'Lemon', 90], rose: ['#ff9cc0', '#f76a9c', 'Rose', 120], pearl: ['#f2f7ff', '#bcd4f5', 'Pearl', 200], tide: ['#4fe0e6', '#16b3c4', 'Tide', 120] };
+// Wardrobe: hats sit on the head bone, leaf styles recolour the sprout.
+export const HATS = { none: ['No hat', 0], straw: ['Straw Hat', 40], cap: ['Sun Cap', 40], flower: ['Flower Crown', 60], crown: ['Tiny Crown', 150], shades: ['Shades', 80], headphones: ['Headphones', 90] };
+export const LEAVES = { green: ['Fresh Green', 0, [1, 1, 1], '#7fd03a'], gold: ['Golden', 80, [2.3, 1.15, 0.5], '#f2c230'], pink: ['Blossom', 60, [2.5, 0.72, 3.6], '#ff8fc0'], autumn: ['Autumn', 60, [2.5, 0.62, 0.3], '#f08a2c'], frost: ['Frost', 100, [1.3, 1.12, 5.2], '#a8ecdf'] };
+function buildHat(kind) {
+  const g = new T.Group(), M = (c, o = {}) => new T.MeshPhysicalMaterial({ color: c, roughness: 0.6, ...o }), add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new T.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  const lathe = (pts, seg = 28) => new T.LatheGeometry(pts.map(([x, y]) => new T.Vector2(x, y)), seg);
+  if (kind === 'straw') { add(lathe([[0.4, 0.0], [0.39, 0.02], [0.2, 0.035], [0.19, 0.12], [0.15, 0.17], [0, 0.185]]), M('#e9c77b', { side: T.DoubleSide })); add(lathe([[0.2, 0.04], [0.205, 0.04], [0.2, 0.09], [0.195, 0.09]]), M('#3f9ff2')); g.position.set(0.03, 0.345, 0); g.rotation.z = -0.08; }
+  else if (kind === 'cap') { add(new T.SphereGeometry(0.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M('#ff6b5c')); const b = add(new T.CylinderGeometry(0.19, 0.19, 0.015, 24, 1, false, -1.1, 2.2), M('#ffffff')); b.position.set(0, 0.01, 0.13); b.scale.z = 1.3; add(new T.SphereGeometry(0.025, 8, 6), M('#ffffff'), 0, 0.2, 0); g.position.set(0, 0.33, 0.02); g.rotation.x = -0.12; }
+  else if (kind === 'flower') { for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283, c = ['#ff8fb5', '#ffd23f', '#ffffff'][i % 3]; const f = add(new T.SphereGeometry(0.05, 10, 8), M(c), Math.cos(a) * 0.235, 0, Math.sin(a) * 0.22); f.scale.y = 0.6; add(new T.SphereGeometry(0.02, 6, 5), M('#ffb21f'), Math.cos(a) * 0.235, 0.025, Math.sin(a) * 0.22); } add(new T.TorusGeometry(0.228, 0.014, 6, 30).rotateX(Math.PI / 2), M('#4fae2e')); g.position.set(0, 0.27, 0); g.rotation.x = -0.1; }
+  else if (kind === 'crown') { const m = M('#ffd23f', { metalness: 0.8, roughness: 0.25 }); add(new T.CylinderGeometry(0.11, 0.1, 0.07, 16, 1, true), m).material.side = T.DoubleSide; for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; add(new T.ConeGeometry(0.03, 0.08, 6), m, Math.cos(a) * 0.105, 0.07, Math.sin(a) * 0.105); add(new T.SphereGeometry(0.014, 6, 5), M(i % 2 ? '#ff5c8a' : '#5fd0ff', { emissive: i % 2 ? '#ff5c8a' : '#5fd0ff', emissiveIntensity: 0.4 }), Math.cos(a) * 0.11, 0.0, Math.sin(a) * 0.11); } g.position.set(-0.07, 0.4, 0); g.rotation.z = 0.2; }
+  else if (kind === 'shades') { const m = M('#1b2340', { roughness: 0.1, clearcoat: 1 }); for (const sx of [-1, 1]) add(new T.CylinderGeometry(0.075, 0.075, 0.02, 20).rotateX(Math.PI / 2), m, sx * 0.09, 0, 0); add(new T.BoxGeometry(0.06, 0.012, 0.012), m, 0, 0.01, 0); for (const sx of [-1, 1]) { const arm = add(new T.BoxGeometry(0.012, 0.012, 0.22), m, sx * 0.165, 0.01, -0.1); arm.rotation.y = sx * -0.25; } g.position.set(0, 0.21, 0.262); }
+  else if (kind === 'headphones') { const m = M('#ffffff', { roughness: 0.3, clearcoat: 0.6 }), c = M('#3f9ff2'); add(new T.TorusGeometry(0.3, 0.02, 8, 30, Math.PI), m); for (const sx of [-1, 1]) { add(new T.CylinderGeometry(0.08, 0.08, 0.06, 18).rotateZ(Math.PI / 2), c, sx * 0.31, -0.02, 0); add(new T.CylinderGeometry(0.06, 0.06, 0.065, 18).rotateZ(Math.PI / 2), m, sx * 0.31, -0.02, 0); } g.position.set(0, 0.2, 0); }
+  return g;
+}
 export function jellyMaterial() {
   const m = new T.MeshPhysicalMaterial({ color: '#5fc4fb', roughness: 0.13, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: '#2f9cf5', emissiveIntensity: 0.5, envMapIntensity: 4.2, sheen: 0.4, sheenColor: '#bfeaff', sheenRoughness: 0.4 });
   m.onBeforeCompile = (s) => {
@@ -44,6 +58,8 @@ export async function createHero(loader, opts = {}) {
   const api = {
     group, bones: B, anim: A, jelly,
     setTint(k) { const t = TINTS[k] || TINTS.sky; jelly.color.set(t[0]); jelly.emissive.set(t[1]); },
+    setHat(k) { if (api.hat) { B.head.remove(api.hat); api.hat = null; } if (k && k !== 'none' && HATS[k]) { api.hat = buildHat(k); B.head.add(api.hat); } },
+    setLeaf(k) { const L = LEAVES[k] || LEAVES.green; model.traverse((o) => { if (o.isMesh && o.material.vertexColors && o.material !== jelly) o.material.color.setRGB(...L[2]); }); },
     emote(name) { if (!EM[name]) return; A.emote = name; A.emoteT = 0; A.idle = 0; if (name === 'surprised' || name === 'celebrate') A.sqV += 4; },
     setExpression(n) { A.expr = n; },
     get emoting() { return A.emote; },

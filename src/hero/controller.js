@@ -15,7 +15,7 @@ let drag = false;
 export function bindPointer(el) {
   el.addEventListener('pointerdown', (e) => { drag = true; el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointerup', () => (drag = false));
-  el.addEventListener('pointermove', (e) => { if (drag || document.pointerLockElement === el) { input.lookX -= e.movementX * 0.0042; input.lookY -= e.movementY * 0.0034; lastInput = performance.now(); } });
+  el.addEventListener('pointermove', (e) => { if (drag || document.pointerLockElement === el) { const k = S.settings?.sens ?? 1; input.lookX -= e.movementX * 0.0042 * k; input.lookY -= e.movementY * 0.0034 * k * (S.settings?.invertY ? -1 : 1); lastInput = performance.now(); } });
   el.addEventListener('wheel', (e) => { input.zoom = (input.zoom || 0) + Math.sign(e.deltaY); }, { passive: true });
 }
 function poll() {
