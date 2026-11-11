@@ -1,0 +1,4 @@
+import { createRequire } from 'module'; const { chromium } = createRequire('/opt/node22/lib/node_modules/')('playwright');
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
+const p = await b.newPage({ viewport: { width: 320, height: 200 } }); p.on('console', (m) => { const t = m.text(); if (!t.includes('GL Driver')) console.log(m.type(), t.slice(0, 600)); }); p.on('pageerror', (e) => console.log('PAGEERR', String(e).slice(0, 600), e.stack?.split('\n').slice(0, 4).join(' | ')));
+await p.goto('http://localhost:5173/?shot=1&' + (process.argv[2] || '')); await p.waitForTimeout(+(process.argv[3] || 40000)); console.log('ready', await p.evaluate('window.game && window.game.ready')); await b.close();

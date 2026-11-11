@@ -87,7 +87,7 @@ def shop(name, wall, aw1, aw2, w=9.0, floors=2, roof='flat'):
     ns = 10; sw = (w + .4) / ns                                                    # striped awning with a scalloped valance
     for i in range(ns):
         x = (i - (ns - 1) / 2) * sw; m = aw1 if i % 2 == 0 else aw2
-        p += [box((sw, 1.9, .06), (x, -d / 2 - .85, 3.02), m, .0, rot=(-.33, 0, 0)), cyl(sw / 2, .05, (x, -d / 2 - 1.76, 2.56), m, 12, rot=(pi / 2, 0, 0))]
+        p += [box((sw, 1.9, .06), (x, -d / 2 - .85, 3.02), m, .0, rot=(-.33, 0, 0)), box((sw, .05, .34), (x, -d / 2 - 1.74, 2.58), m, .0)]
     for f in range(1, floors):
         z = f * fh
         for i in range(n):
@@ -95,6 +95,13 @@ def shop(name, wall, aw1, aw2, w=9.0, floors=2, roof='flat'):
         p.append(box((w - .6, 1.1, .14), (0, -d / 2 - .5, z + .5), 'M_White', .04))
         for i in range(int(w / .55)): p.append(cyl(.03, .8, (-w / 2 + .55 + i * .55, -d / 2 - 1.0, z + .55), 'M_White', 6))
         p.append(tube([(-w / 2 + .3, -d / 2 - 1.0, z + 1.36), (w / 2 - .3, -d / 2 - 1.0, z + 1.36)], .045, 'M_White', 8))
+    for f in range(floors):
+        z = f * fh
+        for sy, cnt in ((1, n),):
+            for i in range(cnt):
+                x = (i - (cnt - 1) / 2) * bw; p += [box((bw - 1.3, .16, 1.6), (x, d / 2, z + 1.8), 'M_GlassBlue', 0), box((bw - 1.1, .24, .1), (x, d / 2 + .03, z + .96), 'M_White', .02), box((bw - 1.1, .22, .1), (x, d / 2 + .02, z + 2.64), 'M_White', .02)]
+        for sx in (-1, 1):
+            for yy in (-1.7, 1.7): p += [box((.16, 1.5, 1.6), (sx * w / 2, yy, z + 1.8), 'M_GlassBlue', 0), box((.24, 1.7, .1), (sx * (w / 2 + .03), yy, z + .96), 'M_White', .02), box((.22, 1.7, .1), (sx * (w / 2 + .02), yy, z + 2.64), 'M_White', .02)]
     if roof == 'dome': p += [cyl(1.5, .5, (w * .2, 0, H + .25), 'M_White', 24), sphere(1.4, (w * .2, 0, H + .75), 'M_GlassBlue', (1, 1, .8))]
     elif roof == 'box': p += [box((w * .4, d * .5, 1.5), (-w * .15, .5, H + 1.0), wall, .1), box((w * .4 + .5, d * .5 + .5, .25), (-w * .15, .5, H + 1.8), 'M_White', .06)]
     return finish(name, p, S)
@@ -104,7 +111,7 @@ def planter(name, r):
     return finish(name, p, P)
 
 def leafy_puff(c, r, seed, dark, light):
-    o = ico(r, c, 'M_Vcol', 3, (1, 1, .82))
+    o = ico(r, c, 'M_Vcol', 4, (1, 1, .82))
     for v in o.data.vertices:
         n = noise.noise(v.co * (2.2 / r) + Vector((seed, 0, 0))); n2 = noise.noise(v.co * (7 / r) + Vector((0, seed, 0))); v.co *= 1 + n * .22 + n2 * .09
     apply(o); return o
@@ -127,7 +134,7 @@ def tree(name, seed, h=5.5):
     return canopy(name, puffs, F, '#278a24', '#8fdb3c', [trunk] + br)
 
 def rock(name, seed, s=1.0, sc=(1, .85, .6)):
-    o = ico(s, (0, 0, 0), 'M_Rock', 3, sc)
+    o = ico(s, (0, 0, 0), 'M_Rock', 4, sc)
     for v in o.data.vertices:
         n = noise.noise(v.co * (1.1 / s) + Vector((seed, seed * 2, 0))); n2 = noise.noise(v.co * (3.5 / s) + Vector((0, seed, 7))); v.co *= 1 + n * .32 + n2 * .1
         if v.co.z < -s * sc[2] * .35: v.co.z = -s * sc[2] * .35
@@ -152,8 +159,8 @@ def petal_obj(n, L, W, cup, c_in, c_out, tilt, name):
     return obj(name, bm, 'M_Leaf')
 def flowers():
     # hibiscus: big pink bloom (foreground hero flower in the key art)
-    p = [petal_obj(5, .2, .13, .9, hexc('#e8437f'), hexc('#ff9fc2'), .35, 'Petals')]
-    p += [tube([(0, 0, 0), (.01, 0, .09), (.03, .0, .17)], .012, 'M_Yellow', 6), sphere(.022, (.03, 0, .18), 'M_Yellow', segs=8, rings=6)]
+    p = [petal_obj(5, .21, .19, .5, hexc('#f0387c'), hexc('#ffa6c8'), .55, 'Petals')]
+    p += [tube([(0, 0, 0), (.01, 0, .07), (.025, .0, .13)], .007, 'M_Yellow', 6), sphere(.016, (.025, 0, .135), 'M_Yellow', segs=8, rings=6)]
     for o in p: o.location.z += .35
     p.append(tube([(0, 0, 0), (0, .02, .2), (0, 0, .35)], .014, 'M_Grass', 6))
     lf = petal_obj(3, .26, .1, .5, hexc('#2d8c28'), hexc('#58c23c'), .15, 'Leaves'); lf.location.z = .12; p.append(lf)

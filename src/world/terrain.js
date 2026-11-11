@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { noise, fbm, ridged, sm, lerp } from '../util/noise.js';
-import { PEAK, HIGH, SPOTS, PATHS } from './layout.js';
+import { PEAK, HIGH, SPOTS, PATHS, PONDS } from './layout.js';
 import { tex, avg } from './materials.js';
 
 const adiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -16,6 +16,7 @@ export function shoreDist(x, z) {   // +inside the island, metres from the water
 const flats = [];   // {x,z,r,h,soft}
 export function addFlat(x, z, r, h, soft = 14) { flats.push({ x, z, r, h, soft }); }
 addFlat(SPOTS.plaza.x, SPOTS.plaza.z, SPOTS.plaza.r, SPOTS.plaza.h, 20);
+for (const k of ['observatory', 'ruins', 'windRidge']) if (SPOTS[k].r) addFlat(SPOTS[k].x, SPOTS[k].z, SPOTS[k].r, SPOTS[k].h, 12);
 
 function baseHeight(x, z) {
   const d = shoreDist(x, z);
@@ -24,16 +25,15 @@ function baseHeight(x, z) {
   else h = 2.6 * sm(0, 36, d) + 5.2 * sm(30, 115, d) + fbm(x * 0.012, z * 0.012, 3) * 1.6 * sm(26, 80, d);
   const coast = sm(6, 34, d);
   const e = Math.hypot(x - HIGH.x, z - HIGH.z) + fbm(x * 0.009, z * 0.009, 3) * 34;      // highland plateaus with cliff edges
-  h += 30 * sm(178, 163, e) * coast; h += 30 * sm(112, 98, e) * coast;
-  h += fbm(x * 0.02 + 7, z * 0.02, 3) * 2.2 * sm(170, 150, e);
+  h += 30 * sm(140, 126, e) * coast; h += 30 * sm(92, 79, e) * coast;
+  h += fbm(x * 0.02 + 7, z * 0.02, 3) * 2.2 * sm(132, 116, e);
   const dm = Math.hypot(x - PEAK.x, z - PEAK.z), k = Math.max(0, 1 - dm / 108);          // Halo Peak
-  h += 128 * Math.pow(k, 1.45) + (ridged(x * 0.022, z * 0.022, 4) - 0.6) * 22 * sm(0, 0.5, k) - 16 * sm(15, 0, dm);
+  h += 142 * Math.pow(k, 1.4) + (ridged(x * 0.022, z * 0.022, 4) - 0.6) * 22 * sm(0, 0.5, k) - 16 * sm(15, 0, dm);
   const L = SPOTS.lighthouse, dl = Math.hypot(x - L.x, z - L.z);
   h = lerp(h, Math.max(h, L.h), sm(64, 44, dl) * sm(2, 12, d));
   h += 14 * gauss(Math.hypot(x - SPOTS.windRidge.x, z - SPOTS.windRidge.z), 60) * coast;
   h += 16 * gauss(Math.hypot(x - SPOTS.observatory.x, z - SPOTS.observatory.z), 42) * coast;
-  const K = SPOTS.lake, dk = Math.hypot((x - K.x) / 1.25, z - K.z);
-  h -= 5.5 * sm(30, 12, dk);
+  for (const K of PONDS) { const dk = Math.hypot((x - K.x) / K.sx, z - K.z); if (dk < K.r + 6) { const t = sm(K.r + 5, K.r - 2, dk); h = lerp(h, Math.min(h, K.level - K.depth * sm(K.r, K.r * 0.35, dk)), t); } }
   for (const f of flats) { const t = sm(f.r + f.soft, f.r, Math.hypot(x - f.x, z - f.z)); if (t > 0) h = lerp(h, f.h, t); }
   return h;
 }
@@ -65,7 +65,7 @@ export function grassAt(x, z, h = heightAt(x, z)) {
 
 export const WORLD = 840, RES = 420;
 const SAND = new T.Color('#f7e2a8'), SANDW = new T.Color('#d8b77c'), G1 = new T.Color('#69c531'), G2 = new T.Color('#4aad2c'), G3 = new T.Color('#93d83e'),
-  ROCK = new T.Color('#b0a086'), ROCK2 = new T.Color('#93866f'), PEAKC = new T.Color('#bca987'), SEAB = new T.Color('#e2d6a4'), PATHC = new T.Color('#c9bca8');
+  ROCK = new T.Color('#b0a086'), ROCK2 = new T.Color('#93866f'), PEAKC = new T.Color('#bca987'), SEAB = new T.Color('#e2d6a4'), PATHC = new T.Color('#cfc6ba');
 
 export function buildTerrain() {
   const n = RES + 1, geo = new T.BufferGeometry(), pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), spl = new Float32Array(n * n * 4);
@@ -88,14 +88,14 @@ export function buildTerrain() {
   }
   geo.setAttribute('color', new T.BufferAttribute(col, 3)); geo.setAttribute('splat', new T.BufferAttribute(spl, 4));
   const U = { tS: { value: tex('coast_sand_01') }, tG: { value: tex('leafy_grass') }, tC: { value: tex('cliff_side') }, tP: { value: tex('rectangular_paving') }, nG: { value: tex('leafy_grass', 'nor_gl') }, nC: { value: tex('cliff_side', 'nor_gl') },
-    aS: { value: avg('coast_sand_01') }, aG: { value: avg('leafy_grass') }, aC: { value: avg('cliff_side') }, aP: { value: avg('rectangular_paving') } };
+    aS: { value: avg('coast_sand_01') }, aG: { value: avg('leafy_grass') }, aC: { value: avg('cliff_side') }, aP: { value: avg('rectangular_paving') }, plaza: { value: new T.Vector3(SPOTS.plaza.x, SPOTS.plaza.z, SPOTS.plaza.r) } };
   const mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 });
   mat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, U);
     s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 splat;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSp=splat;vWp=(modelMatrix*vec4(position,1.)).xyz;vWn=normal;');
     s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D tS,tG,tC,tP,nG,nC;uniform vec3 aS,aG,aC,aP;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;
+      uniform sampler2D tS,tG,tC,tP,nG,nC;uniform vec3 aS,aG,aC,aP,plaza;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;
       vec3 det(sampler2D t,vec3 a,vec2 uv){vec3 c=texture2D(t,uv).rgb;return mix(vec3(1.),c/a,.85);}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec4 w=vSp/max(vSp.x+vSp.y+vSp.z+vSp.w,1e-3);
@@ -103,9 +103,13 @@ export function buildTerrain() {
         vec3 dG=det(tG,aG,uv*.42)*mix(vec3(1.),det(tG,aG,uv*.061),.6);
         vec3 dS=det(tS,aS,uv*.3)*mix(vec3(1.),det(tS,aS,uv*.043),.4);
         vec3 dC=mix(det(tC,aC,uvc*.085),det(tC,aC,uv*.085),smoothstep(.55,.8,an.y))*mix(vec3(1.),det(tC,aC,uvc*.017),.5);
-        vec3 dP=det(tP,aP,uv*.34);
+        vec3 dP=mix(vec3(1.),det(tP,aP,uv*.3),.55);
         vec3 d=dS*w.x+dG*w.y+dC*w.z+dP*w.w;
-        diffuseColor.rgb*=clamp(d,0.,1.7);`)
+        diffuseColor.rgb*=clamp(d,0.,1.7);
+        { float pr=length(vWp.xz-plaza.xy); float ring=(smoothstep(5.4,5.7,pr)*smoothstep(7.4,7.1,pr)+smoothstep(15.6,15.9,pr)*smoothstep(17.3,17.,pr)+smoothstep(plaza.z-4.6,plaza.z-4.3,pr)*smoothstep(plaza.z-2.6,plaza.z-2.9,pr))*step(pr,plaza.z)*w.w;
+          float ang=atan(vWp.z-plaza.y,vWp.x-plaza.x); float brick=step(.12,fract(ang*pr*.9))*step(.1,fract(pr*2.4));
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.80,.47,.40)*mix(.78,1.,brick)*mix(.9,1.08,dP.r),ring*.9);
+          float seam=smoothstep(.06,.0,abs(fract(pr/3.4)-.5)-.47)*step(pr,plaza.z)*w.w*(1.-ring); diffuseColor.rgb*=1.-seam*.12; }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         { vec4 w2=vSp/max(vSp.x+vSp.y+vSp.z+vSp.w,1e-3); vec3 an2=abs(normalize(vWn)); vec2 uvc2=an2.x>an2.z?vec2(vWp.z,vWp.y):vec2(vWp.x,vWp.y);
           vec3 tn=(texture2D(nG,vWp.xz*.42).xyz*2.-1.)*w2.y+(texture2D(nC,mix(uvc2,vWp.xz,smoothstep(.55,.8,an2.y))*.085).xyz*2.-1.)*(w2.z*1.6)+vec3(0.,0.,1.)*(w2.x+w2.w);

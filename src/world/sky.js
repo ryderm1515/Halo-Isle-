@@ -1,13 +1,13 @@
 import * as T from 'three';
 import { rng } from '../util/noise.js';
-export const SUN_DIR = new T.Vector3(0.48, 0.74, 0.47).normalize();
+export const SUN_DIR = new T.Vector3(0.62, 0.5, 0.42).normalize();   // lowish late-afternoon sun
 export function buildSky(scene, renderer) {
   const mat = new T.ShaderMaterial({ side: T.BackSide, depthWrite: false, fog: false, uniforms: { sun: { value: SUN_DIR } },
     vertexShader: 'varying vec3 d;void main(){d=normalize(position);vec4 p=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*p;gl_Position.z=gl_Position.w;}',
     fragmentShader: `varying vec3 d;uniform vec3 sun;void main(){vec3 n=normalize(d);float h=clamp(n.y,-.2,1.);
-      vec3 zen=vec3(.07,.40,.93),mid=vec3(.25,.64,1.),hor=vec3(.72,.90,1.);
-      vec3 c=mix(hor,mid,smoothstep(0.,.28,h));c=mix(c,zen,smoothstep(.2,.85,h));c=mix(c,vec3(.80,.94,1.),smoothstep(0.,-.12,h)*.7);
-      float s=max(dot(n,sun),0.);c+=vec3(1.,.95,.8)*(pow(s,900.)*4.+pow(s,24.)*.22+pow(s,4.)*.10);
+      vec3 zen=vec3(.08,.40,.92),mid=vec3(.30,.66,1.),hor=vec3(1.,.90,.72);
+      vec3 c=mix(hor,mid,smoothstep(0.,.28,h));c=mix(c,zen,smoothstep(.2,.85,h));c=mix(c,vec3(1.,.92,.78),smoothstep(0.,-.12,h)*.7); c=mix(c,vec3(1.,.86,.60),pow(max(dot(normalize(vec3(n.x,0.,n.z)),normalize(vec3(sun.x,0.,sun.z))),0.),3.)*smoothstep(.45,0.,h)*.55);
+      float s=max(dot(n,sun),0.);c+=vec3(1.,.88,.6)*(pow(s,700.)*5.+pow(s,24.)*.35+pow(s,4.)*.16);
       gl_FragColor=vec4(c,1.);
       #include <colorspace_fragment>
     }` });
@@ -17,9 +17,9 @@ export function buildSky(scene, renderer) {
   for (const [x, y, z, sz, i] of [[900, 1500, 900, 900, 9], [-1400, 900, 300, 700, 3.5], [200, 700, -1500, 800, 2.5]]) { const b = new T.Mesh(new T.SphereGeometry(sz, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(i, i, i) })); b.position.set(x, y, z); envScene.add(b); }
   for (const a of [0.5, 2.3, 4.2]) { const b = new T.Mesh(new T.BoxGeometry(170, 1700, 170), new T.MeshBasicMaterial({ color: new T.Color(7, 7, 7) })); b.position.set(Math.cos(a) * 2200, 900, Math.sin(a) * 2200); envScene.add(b); }
   { const fl = new T.Mesh(new T.CircleGeometry(2900, 24).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#bfe0f2' })); fl.position.y = -60; envScene.add(fl); }
-  const pm = new T.PMREMGenerator(renderer); const env = pm.fromScene(envScene, 0.02, 1, 5000).texture; scene.environment = env; scene.environmentIntensity = 0.3; pm.dispose();
+  const pm = new T.PMREMGenerator(renderer); const env = pm.fromScene(envScene, 0.02, 1, 5000).texture; scene.environment = env; scene.environmentIntensity = 0.24; pm.dispose();
   // puffy clouds: clusters of soft spheres, lit from above
-  const cmat = new T.MeshLambertMaterial({ color: '#ffffff', emissive: '#bcd9f7', emissiveIntensity: 0.62, fog: false });
+  const cmat = new T.MeshLambertMaterial({ color: '#f4f8ff', emissive: '#f3f6ff', emissiveIntensity: 0.6, fog: false });
   const r = rng(77), geo = new T.IcosahedronGeometry(1, 3), clouds = new T.Group(), dummy = new T.Object3D(), N = 46, per = 9, inst = new T.InstancedMesh(geo, cmat, N * per); let k = 0;
   const groups = [];
   for (let i = 0; i < N; i++) {

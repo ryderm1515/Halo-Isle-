@@ -5,6 +5,9 @@ import { buildWater } from './world/water.js';
 import { buildSky, SUN_DIR } from './world/sky.js';
 import { SPOTS } from './world/layout.js';
 import { groundAt } from './world/colliders.js';
+import { buildGrass } from './world/grass.js';
+import { buildPost } from './fx/post.js';
+import { WIND } from './fx/wind.js';
 import { createHero } from './hero/hero.js';
 import { createController, bindPointer } from './hero/controller.js';
 
@@ -12,20 +15,22 @@ const Q = new URLSearchParams(location.search), SHOT = Q.has('shot');
 const canvas = document.getElementById('game');
 const renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: SHOT });
 renderer.setPixelRatio(SHOT ? 1 : Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
-renderer.toneMapping = T.NeutralToneMapping; renderer.toneMappingExposure = 1.0; renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
-const scene = new T.Scene(); scene.fog = new T.Fog('#a9d8ff', 420, 3200);
+renderer.toneMapping = T.NeutralToneMapping; renderer.toneMappingExposure = 1.08; renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+const scene = new T.Scene(); scene.fog = new T.Fog('#ffeccf', 520, 3600);
 const camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.12, 6000);
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+const post = Q.has('nopost') ? null : buildPost(renderer, scene, camera, SHOT);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); post?.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 const sky = buildSky(scene, renderer);
-const sun = new T.DirectionalLight('#fff0d2', 3.0); sun.castShadow = true; sun.shadow.mapSize.set(SHOT ? 2048 : 4096, SHOT ? 2048 : 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
-sun.shadow.radius = 2.2; const SH = 40; Object.assign(sun.shadow.camera, { left: -SH, right: SH, top: SH, bottom: -SH, near: 1, far: 400 }); sun.shadow.camera.updateProjectionMatrix(); scene.add(sun, sun.target);
-scene.add(new T.HemisphereLight('#bfe2ff', '#9fc78a', 1.0));
+const sun = new T.DirectionalLight('#ffdc9c', 3.9); sun.castShadow = true; sun.shadow.mapSize.set(SHOT ? 2048 : 4096, SHOT ? 2048 : 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+sun.shadow.radius = 1.4; const SH = 40; Object.assign(sun.shadow.camera, { left: -SH, right: SH, top: SH, bottom: -SH, near: 1, far: 400 }); sun.shadow.camera.updateProjectionMatrix(); scene.add(sun, sun.target);
+scene.add(new T.HemisphereLight('#9cc8ff', '#c7b48a', 0.72));
 const terrain = buildTerrain(); scene.add(terrain.mesh);
 const water = buildWater(terrain.depthTex, terrain.depthSize); scene.add(water.mesh);
 
+const grass = buildGrass(terrain.depthTex, terrain.depthSize); scene.add(grass.mesh);
 const loader = new GLTFLoader();
-const G = (window.game = { scene, camera, renderer, T, heightAt, SPOTS, ready: false, frames: 0, systems: [] });
+const G = (window.game = { scene, camera, renderer, T, look: post, heightAt, SPOTS, ready: false, frames: 0, systems: [] });
 const hero = await createHero(loader); scene.add(hero.group);
 const ctl = createController(hero, camera); bindPointer(canvas);
 G.hero = hero; G.ctl = ctl;
@@ -38,17 +43,20 @@ if (Q.has('yaw')) ctl.cam.yaw = +Q.get('yaw'); if (Q.has('pitch')) ctl.cam.pitch
 
 const { initWorld } = await import('./world/world.js').catch((e) => (console.warn('world module', e), {}));
 if (initWorld) await initWorld(G, loader);
+const { initLandmarks } = await import('./world/landmarks.js'); await initLandmarks(G, loader, terrain);
+const { initAmbient } = await import('./fx/ambient.js'); initAmbient(G);
 
-if (Q.has('studio')) { ctl.cam.lookH = 0.5; terrain.mesh.visible = water.mesh.visible = sky.sky.visible = sky.clouds.visible = false; scene.background = new T.Color('#e9f1fb'); scene.fog = null; const fl = new T.Mesh(new T.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ color: '#eef4fc', roughness: 0.9 })); fl.receiveShadow = true; fl.position.copy(ctl.pos).y += 0.002; scene.add(fl); }
+if (Q.has('studio')) { ctl.cam.lookH = 0.5; terrain.mesh.visible = grass.mesh.visible = water.mesh.visible = sky.sky.visible = sky.clouds.visible = false; scene.background = new T.Color('#e9f1fb'); scene.fog = null; const fl = new T.Mesh(new T.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ color: '#eef4fc', roughness: 0.9 })); fl.receiveShadow = true; fl.position.copy(ctl.pos).y += 0.002; scene.add(fl); }
 const clock = new T.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   ctl.update(dt);
+  WIND.time.value += dt; if (post) post.dof.focus.value = camera.position.distanceTo(ctl.cam.look);
   for (const s of G.systems) s(dt, G);
   { const gy = groundAt(ctl.pos.x, ctl.pos.z, ctl.pos.y + 0.3), air = Math.max(0, ctl.pos.y - gy); blob.position.set(ctl.pos.x, Math.max(gy, -0.02) + 0.03, ctl.pos.z); const k = 1 / (1 + air * 0.55); blob.scale.setScalar(k); blob.material.opacity = 0.3 * k; blob.visible = gy > -0.3; }
   sun.target.position.copy(ctl.pos); sun.position.copy(ctl.pos).addScaledVector(SUN_DIR, 160); sun.target.updateMatrixWorld();
-  sky.update(dt, camera.position); water.update(dt, camera.position);
-  renderer.render(scene, camera); G.frames++;
+  sky.update(dt, camera.position); water.update(dt, camera.position); grass.update(dt, ctl.cam.look, ctl.pos);
+  if (post) post.render(); else renderer.render(scene, camera); G.frames++;
   requestAnimationFrame(frame);
 }
 G.ready = true; frame();
