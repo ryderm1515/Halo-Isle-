@@ -45,9 +45,7 @@ def fountain():
     p.append(lathe(smooth_profile([(1.5, .22), (1.75, .5), (2.3, .98), (2.42, 1.16), (2.3, 1.26), (2.05, 1.26), (2.0, 1.16), (0, 1.1)], 3), 'M_Marble', 48))
     p.append(lathe([(0, 1.2), (2.02, 1.2)], 'M_Water', 40))
     p.append(lathe(smooth_profile([(1.2, 1.1), (1.25, 1.4), (1.45, 1.52), (1.4, 1.62), (0, 1.62)], 3), 'M_Marble', 40))
-    blob = lathe(smooth_profile([(0, 1.6), (1.3, 1.6), (1.5, 1.72), (1.42, 2.0), (1.12, 2.35), (.9, 2.62), (.86, 2.95), (.8, 3.25), (.6, 3.52), (.3, 3.68), (0, 3.72)], 6), 'M_Jelly', 48); p.append(blob)
-    for sx in (-.3, .3): p.append(sphere(.1, (sx, -.8, 3.05), 'M_Eye', (1, .5, 1.35), 14, 10))
-    p.append(tube([(.26 * math.sin(t), -.86 + .05 * abs(math.sin(t)) , 2.82 - .1 * math.cos(t)) for t in [x / 8 * 1.8 - .9 for x in range(9)]], .028, 'M_Eye', 8))
+    p.append(lathe(smooth_profile([(1.1, 1.62), (1.05, 1.9), (1.25, 2.0), (1.2, 2.14), (0, 2.14)], 3), 'M_Marble', 40))      # plinth for the hero statue
     return finish('fountain', p, S)
 
 def town_hall():
@@ -102,6 +100,26 @@ def shop(name, wall, aw1, aw2, w=9.0, floors=2, roof='flat'):
                 x = (i - (cnt - 1) / 2) * bw; p += [box((bw - 1.3, .16, 1.6), (x, d / 2, z + 1.8), 'M_GlassBlue', 0), box((bw - 1.1, .24, .1), (x, d / 2 + .03, z + .96), 'M_White', .02), box((bw - 1.1, .22, .1), (x, d / 2 + .02, z + 2.64), 'M_White', .02)]
         for sx in (-1, 1):
             for yy in (-1.7, 1.7): p += [box((.16, 1.5, 1.6), (sx * w / 2, yy, z + 1.8), 'M_GlassBlue', 0), box((.24, 1.7, .1), (sx * (w / 2 + .03), yy, z + .96), 'M_White', .02), box((.22, 1.7, .1), (sx * (w / 2 + .02), yy, z + 2.64), 'M_White', .02)]
+    # --- detail pass: corner pilasters, shutters, flower boxes, door frame, sign, string of bunting
+    for sx in (-1, 1):
+        for sy in (-1, 1): p.append(box((.42, .42, H - .2), (sx * (w / 2 - .02), sy * (d / 2 - .02), H / 2 + .05), 'M_White', .06))
+    p += [box((2.2, .3, .16), (0, -d / 2 - .1, 3.06), 'M_White', .04), box((.16, .3, 2.7), (-1.05, -d / 2 - .1, 1.7), 'M_White', .04), box((.16, .3, 2.7), (1.05, -d / 2 - .1, 1.7), 'M_White', .04), box((2.6, .9, .14), (0, -d / 2 - .45, .43), 'M_Stone', .03), plane(1.5, .5, (0, -d / 2 - 1.9, 2.2), 'M_ShopSign')]
+    for f in range(1, floors):
+        z = f * fh
+        for i in range(n):
+            x = (i - (n - 1) / 2) * bw; ww = bw - 1.2
+            for sx in (-1, 1): p.append(box((.36, .07, 1.7), (x + sx * (ww / 2 + .22), -d / 2 - .05, z + 1.75), 'M_Shutter', .015))
+            p.append(box((ww + .3, .34, .26), (x, -d / 2 - 1.18, z + .78), 'M_Wood', .04))
+            for k in range(5): p.append(sphere(.13, (x - ww / 2 + .1 + k * (ww - .0) / 4, -d / 2 - 1.18, z + .98), ('M_Pink', 'M_Yellow', 'M_FabricWhite', 'M_Red', 'M_Pink')[k], (1, 1, .8), 8, 6))
+            p.append(sphere(.2, (x, -d / 2 - 1.18, z + .9), 'M_Grass', (ww * 2.2, .8, .6), 10, 6))
+    nb = 9
+    for k in range(nb):
+        t = (k + .5) / nb; x = -w / 2 + .4 + t * (w - .8); zz = fh + .05 - .28 * math.sin(t * pi); m = ('M_FabricBlue', 'M_FabricOrange', 'M_FabricPink', 'M_FabricGreen', 'M_FabricWhite')[k % 5]
+        p.append(prism([(-.16, 0), (.16, 0), (0, -.34)], .015, m, (x, -d / 2 - 1.9, zz + .5 - fh + 2.9), bevel=0))
+    if roof == 'flat':                                              # tiled hip roof instead of a bare slab
+        bm = bmesh.new(); hw, hd, hh = w / 2 + .55, d / 2 + .55, 2.1; v = [bm.verts.new(c) for c in ((-hw, -hd, H + .26), (hw, -hd, H + .26), (hw, hd, H + .26), (-hw, hd, H + .26), (-hw * .35, 0, H + .26 + hh), (hw * .35, 0, H + .26 + hh))]
+        for f in ((0, 1, 5, 4), (1, 2, 5), (2, 3, 4, 5), (3, 0, 4)): bm.faces.new([v[i] for i in f])
+        p.append(obj('Roof', bm, 'M_RoofTile', smooth=False)); p.append(box((.7, .7, 1.5), (w * .25, d * .2, H + 1.3), 'M_Plaster', .05)); p.append(box((.86, .86, .16), (w * .25, d * .2, H + 2.1), 'M_White', .03))
     if roof == 'dome': p += [cyl(1.5, .5, (w * .2, 0, H + .25), 'M_White', 24), sphere(1.4, (w * .2, 0, H + .75), 'M_GlassBlue', (1, 1, .8))]
     elif roof == 'box': p += [box((w * .4, d * .5, 1.5), (-w * .15, .5, H + 1.0), wall, .1), box((w * .4 + .5, d * .5 + .5, .25), (-w * .15, .5, H + 1.8), 'M_White', .06)]
     return finish(name, p, S)
@@ -159,7 +177,7 @@ def petal_obj(n, L, W, cup, c_in, c_out, tilt, name):
     return obj(name, bm, 'M_Leaf')
 def flowers():
     # hibiscus: big pink bloom (foreground hero flower in the key art)
-    p = [petal_obj(5, .21, .19, .5, hexc('#f0387c'), hexc('#ffa6c8'), .55, 'Petals')]
+    p = [petal_obj(5, .2, .2, .35, hexc('#ee2f78'), hexc('#ff9cc4'), .8, 'Petals'), petal_obj(5, .1, .09, .3, hexc('#c3165a'), hexc('#ee2f78'), 1.1, 'Inner')]
     p += [tube([(0, 0, 0), (.01, 0, .07), (.025, .0, .13)], .007, 'M_Yellow', 6), sphere(.016, (.025, 0, .135), 'M_Yellow', segs=8, rings=6)]
     for o in p: o.location.z += .35
     p.append(tube([(0, 0, 0), (0, .02, .2), (0, 0, .35)], .014, 'M_Grass', 6))

@@ -8,7 +8,7 @@ PREVIEW = {'M_Wood': '#c98a4b', 'M_WoodDark': '#8a5a34', 'M_Plaster': '#f6f3ea',
            'M_StoneRuin': '#aeb39a', 'M_Marble': '#f1f0ee', 'M_Paving': '#d9d2c6', 'M_PavingPink': '#e3b9ae', 'M_Rock': '#a59a88', 'M_RoofTile': '#e8826a', 'M_Navy': '#1c3f86', 'M_Metal': '#c9d2dc',
            'M_White': '#fbfcff', 'M_Glass': '#9fd6f7', 'M_GlassBlue': '#4fb4f2', 'M_Lamp': '#fffdf2', 'M_Glow': '#59f0ff', 'M_FabricBlue': '#3f9ff2', 'M_FabricWhite': '#fdfdfd', 'M_FabricOrange': '#ff9a45',
            'M_FabricPink': '#ff8fb5', 'M_FabricPurple': '#9a7be0', 'M_FabricGreen': '#8cd64a', 'M_FabricRed': '#f0524a', 'M_Jelly': '#50bafa', 'M_Water': '#59d7f5', 'M_Vcol': '#ffffff', 'M_Leaf': '#ffffff',
-           'M_Trunk': '#c59a5e', 'M_Banner': '#3f9ff2', 'M_SignA': '#3f9ff2', 'M_SignB': '#8cd64a', 'M_SignC': '#9a7be0', 'M_Eye': '#16296a', 'M_Sand': '#f7e2a8', 'M_Grass': '#69c531', 'M_Yellow': '#ffd23f', 'M_Red': '#f0524a', 'M_Black': '#22262e', 'M_Grey': '#6f7884', 'M_Soil': '#7a5a3c', 'M_Paper': '#fbf6e6'}
+           'M_Trunk': '#c59a5e', 'M_Banner': '#3f9ff2', 'M_SignA': '#3f9ff2', 'M_SignB': '#8cd64a', 'M_SignC': '#9a7be0', 'M_Eye': '#16296a', 'M_Sand': '#f7e2a8', 'M_Grass': '#69c531', 'M_Yellow': '#ffd23f', 'M_Red': '#f0524a', 'M_Black': '#22262e', 'M_Grey': '#6f7884', 'M_Soil': '#7a5a3c', 'M_Paper': '#fbf6e6', 'M_Tint': '#ffffff', 'M_Shutter': '#3f9ff2', 'M_Tyre': '#2a2d33', 'M_Pink': '#ff8fb5', 'M_Coconut': '#7a4b26', 'M_NavyBlue': '#2f6fd6'}
 def M(name):
     m = bpy.data.materials.get(name)
     if not m:
@@ -119,3 +119,20 @@ def ring(n, radius, fn, start=0):
         for o in res:
             apply(o); o.data.transform(Matrix.Translation((radius, 0, 0))); o.data.transform(Matrix.Rotation(a, 4, 'Z')); out.append(o)
     return out
+
+def blade(L, W, pts_fn, c0, c1, mat='M_Leaf', NU=10, NV=4, fold=.35, tipc=None, name='Blade', bm=None, col=None):
+    """One leaf blade along a centre-line: pts_fn(u) -> (Vector position, Vector side, Vector up). Vertex colours c0 (base) -> c1 (tip)."""
+    own = bm is None
+    if own: bm = bmesh.new(); col = bm.loops.layers.color.new('Col')
+    g = []
+    for i in range(NU + 1):
+        u = i / NU; c, side, up = pts_fn(u); w = W * (math.sin(math.pi * min(1, u * .93 + .07)) ** .6); row = []
+        for j in range(NV + 1):
+            v = j / NV * 2 - 1; row.append((bm.verts.new(c + side * (v * w) - up * (abs(v) * w * fold)), u, abs(v)))
+        g.append(row)
+    for i in range(NU):
+        for j in range(NV):
+            f = bm.faces.new((g[i][j][0], g[i + 1][j][0], g[i + 1][j + 1][0], g[i][j + 1][0]))
+            for lp, (vv, u, e) in zip(f.loops, (g[i][j], g[i + 1][j], g[i + 1][j + 1], g[i][j + 1])):
+                c = lerp3(c0, c1, min(1, u * 1.1 + (.25 if e < .2 else 0))); lp[col] = (*c, 1)
+    if own: return obj(name, bm, mat)

@@ -13,18 +13,19 @@ export async function initGame(G, loader) {
   ctl.waters = PONDS; hero.setTint(S.tint); G.S = S; G.input = input;
   initCollect(G);
   on('jump', () => audio.jump()); on('land', (v, wet) => { if (wet) audio.splash(); else if (v > 6) audio.land(); if (wet) G.sparkle(ctl.pos.x, Math.max(ctl.pos.y, 0) + 0.2, ctl.pos.z, 10, 2.5); }); on('glide', (o) => audio.glide(o));
-  addEventListener('keydown', (e) => { if (e.code === 'KeyM') hud.toast(audio.toggle() ? 'Sound off' : 'Sound on'); if (e.code === 'Tab') { e.preventDefault(); toggleJournal(); } if (e.code === 'Escape' && hud.journalOpen) toggleJournal(); });
+  addEventListener('keydown', (e) => { if (e.code === 'KeyN') hud.toast(audio.toggle() ? 'Sound off' : 'Sound on'); if (hud.dialogOpen && !e.repeat && (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE')) { e.preventDefault(); audio.ui(); hud.advance?.(); input.interact = false; input.jump = false; } if (e.code === 'Tab') { e.preventDefault(); toggleJournal(); } if (e.code === 'Escape' && hud.journalOpen) toggleJournal(); });
 
   // ------------------------------------------------------------------ interactables
   const things = []; const thing = (o) => (things.push(o), o); G.things = things;
   // ------------------------------------------------------------------ islanders (same species as the hero, different jellies)
   const npcs = [];
   async function npc(name, tint, x, z, scale, lines, extra = {}) {
-    const h = await createHero(loader, { clone: true }); h.setTint(tint); h.group.scale.setScalar(scale); const y = extra.y ?? groundAt(x, z); h.group.position.set(x, y, z); root.add(h.group); addCircle(x, z, 0.36 * scale, y + scale);
-    const n = { name, h, x, z, y, yaw: extra.yaw ?? 0, st: { speed: 0, vy: 0, grounded: true, turn: 0, justJumped: false, justLanded: false, landSpeed: 0, swim: false, input: true }, waved: 0, lines, ...extra }; h.group.rotation.y = n.yaw; npcs.push(n);
-    thing({ x, z, y, r: 2.6, label: `Talk to ${name}`, act: () => talk(n) }); return n;
+    const h = await createHero(loader, { clone: true }); h.setTint(tint); h.group.scale.setScalar(scale); const y = extra.y ?? groundAt(x, z); h.group.position.set(x, y, z); root.add(h.group); const col = addCircle(x, z, 0.36 * scale, y + scale);
+    const n = { col, home: { x, z }, tint, name, h, x, z, y, yaw: extra.yaw ?? 0, st: { speed: 0, vy: 0, grounded: true, turn: 0, justJumped: false, justLanded: false, landSpeed: 0, swim: false, input: true }, waved: 0, lines, ...extra }; h.group.rotation.y = n.yaw; npcs.push(n);
+    n.thing = thing({ x, z, y, r: 2.6, label: `Talk to ${name}`, act: () => talk(n) }); return n;
   }
-  function talk(n) { const lines = typeof n.lines === 'function' ? n.lines() : n.lines; audio.talk(); ctl.locked = true; n.h.emote('happy'); hud.dialog(n.name, lines, () => { ctl.locked = false; n.after?.(); }); }
+  G.npcs = npcs; G.npc = npc; G.thing = thing;
+  function talk(n) { n.talking = true; const lines = typeof n.lines === 'function' ? n.lines() : n.lines; audio.talk(); ctl.locked = true; n.h.emote('happy'); hud.dialog(n.name, lines, () => { ctl.locked = false; n.talking = false; n.after?.(); }); }
   const shardN = () => count(S.shards);
   await npc('Pip', 'mint', P.x + 6.5, P.z + 9, 0.92, () => S.flags.metPip ? ['The fountain is my favourite spot. Listen to it!', shardN() < 5 ? `You've found ${shardN()} of the five halo shards. Mayor Dew at the Town Hall keeps count.` : 'The halo is whole again. Doesn\'t the whole island feel brighter?'] :
     ['Oh! A new face! Welcome to <b>Halo Isle</b>.', 'Go wherever you like. There are games on the beach, races around town, and old ruins nobody has figured out.', 'See that ring above the mountain? It used to shine much brighter. Folks say five shards of its light fell across the island…', 'If you want to help, talk to <b>Mayor Dew</b> on the Town Hall steps. Or just go play. That\'s what I\'d do!'], { after: () => { S.flags.metPip = 1; save(); }, yaw: 2.4 });
@@ -49,10 +50,10 @@ export async function initGame(G, loader) {
     const m = new T.Mesh(new T.CylinderGeometry(r * 0.75, r, top - base, 28, 1, true), liftMat); m.position.set(x, (top + base) / 2, z); m.renderOrder = 4; root.add(m);
     const pad = new T.Mesh(new T.TorusGeometry(r, 0.13, 8, 40).rotateX(Math.PI / 2), new T.MeshBasicMaterial({ color: new T.Color(0.7, 2.2, 2.6), toneMapped: false })); pad.position.set(x, base + 0.1, z); root.add(pad); L.mesh = m; L.pad = pad; return L; }
   // find the first tall rise along a ray from the plateau centre outward and put a lift at its foot
-  const HX = -10, HZ = -60; const edge = (deg, r0) => { const a = deg * D, dx = Math.cos(a), dz = Math.sin(a); let top = heightAt(HX + dx * r0, HZ + dz * r0); for (let r = r0; r < r0 + 80; r += 1) { const h = heightAt(HX + dx * r, HZ + dz * r); if (h < top - 18) { let rr = r; while (rr < r + 30 && heightAt(HX + dx * (rr + 1), HZ + dz * (rr + 1)) < heightAt(HX + dx * rr, HZ + dz * rr) - 0.25) rr++; return [HX + dx * (rr + 2.5), HZ + dz * (rr + 2.5), top]; } top = Math.max(top, h); } return null; };
+  const HX = -10, HZ = -60; const edge = (deg, r0) => { const a = deg * D, dx = Math.cos(a), dz = Math.sin(a); let top = heightAt(HX + dx * r0, HZ + dz * r0); for (let r = r0; r < r0 + 80; r += 1) { const h = heightAt(HX + dx * r, HZ + dz * r); if (h < top - 18) { let rr = r; while (rr < r + 30 && heightAt(HX + dx * (rr + 1), HZ + dz * (rr + 1)) < heightAt(HX + dx * rr, HZ + dz * rr) - 0.25) rr++; return [HX + dx * (rr + 2.5), HZ + dz * (rr + 2.5), top, HX + dx * (r - 9), HZ + dz * (r - 9)]; } top = Math.max(top, h); } return null; };
   const liftSpots = [];
-  for (const [deg, r0, name] of [[52, 100, 'falls'], [150, 100, 'west'], [5, 100, 'east'], [75, 55, 'upper'], [-150, 55, 'upperN']]) { const e = edge(deg, r0); if (e) { lift(e[0], e[1], e[2] + 4.5); liftSpots.push({ x: e[0], z: e[1], name }); } }
-  const sumTop = G.peakTop, sumLift = lift(PEAK.x + 62, PEAK.z + 40, sumTop + 8, 3.2, 'summit'); sumLift.off = shardN() < 4; sumLift.mesh.visible = sumLift.pad.visible = !sumLift.off;
+  for (const [deg, r0, name] of [[52, 100, 'falls'], [150, 100, 'west'], [5, 100, 'east'], [75, 55, 'upper'], [-150, 55, 'upperN']]) { const e = edge(deg, r0); if (e) { lift(e[0], e[1], e[2] + 4.5).land = [e[3], e[4]]; liftSpots.push({ x: e[0], z: e[1], name }); } }
+  const sumTop = G.peakTop, sumLift = lift(PEAK.x + 62, PEAK.z + 40, sumTop + 8, 3.2, 'summit'); sumLift.land = [PEAK.x + 16, PEAK.z + 10]; sumLift.off = shardN() < 4; sumLift.mesh.visible = sumLift.pad.visible = !sumLift.off;
   // a calm ledge to land on at the summit
   // ------------------------------------------------------------------ halo shards + the story
   const shardGeo = new T.OctahedronGeometry(0.55, 0), shardMat = new T.MeshPhysicalMaterial({ color: '#bff3ff', emissive: '#5fdcff', emissiveIntensity: 1.6, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.92, envMapIntensity: 5 });
@@ -108,6 +109,7 @@ export async function initGame(G, loader) {
     thing({ x: bx - 6, z: bz - 9, r: 2.4, marker: '#ff8fb5', name, label: () => `Start ${name}${S.best.bubble ? ` · best ${S.best.bubble}` : ''}`, act: () => { if (A.cur) return audio.bad(); audio.good(); let t = 40, score = 0; bubs.forEach(spawn); hud.activity(name);
       A.cur = { update(dt) { t -= dt; hud.activityUpdate(Math.max(0, t).toFixed(1), `Popped ${score}`); const hp = ctl.pos; for (const b of bubs) { b.t += dt; b.m.position.y += Math.sin(b.t * 1.7) * dt * 0.35; b.m.position.x += Math.sin(b.t * 0.9) * dt * 0.3; if (b.m.position.distanceTo(new T.Vector3(hp.x, hp.y + 0.6, hp.z)) < 0.55 * b.m.scale.x + 0.55) { score++; audio.pop(); G.sparkle(b.m.position.x, b.m.position.y, b.m.position.z, 12, 3); spawn(b); } }
           if (t <= 0) { bubs.forEach((b) => (b.m.visible = false)); if (!S.best.bubble || score > S.best.bubble) S.best.bubble = score; finish('bubble', name, score >= 26 ? 3 : score >= 18 ? 2 : score >= 10 ? 1 : 0, [`Popped ${score} bubbles`, 'Gold 26 · Silver 18 · Bronze 10']); } }, cancel() { bubs.forEach((b) => (b.m.visible = false)); } }; } }); }
+  G.act = { A, finish, race, startPost, fmt, edge, lift, circ, MED }; G.giveShard = giveShard; G.toggleJournal = () => toggleJournal();
   G.activities = [['plaza', 'Plaza Dash', 'Town plaza'], ['beach', 'Beach Sprint', 'Resort beach'], ['falls', 'Falls Run', 'Path to the falls'], ['bubble', 'Bubble Pop', 'Resort beach'], ['glide', 'Halo Glide', 'Cliffs above town · needs Leaf Glide']];
 
   // ------------------------------------------------------------------ beach balls you can boot around
@@ -137,9 +139,9 @@ export async function initGame(G, loader) {
     // nearest interactable
     let best = null, bd = 1e9; if (!hud.dialogOpen && !hud.journalOpen) for (const th of things) { const d = Math.hypot(hp.x - th.x, hp.z - th.z); if (d < th.r && d < bd && Math.abs((th.y ?? hp.y) - hp.y) < 3) { best = th; bd = d; } }
     if (best) hud.prompt('E', typeof best.label === 'function' ? best.label() : best.label); else hud.prompt(null);
-    if (hud.dialogOpen) { if (input.interact || input.jump) { input.jump = false; audio.ui(); hud.advance?.(); } } else if (input.interact && best) best.act();
+    if (!hud.dialogOpen && input.interact && best && !G.busy) best.act();
     input.interact = false;
-    for (const n of npcs) { const dx = hp.x - n.x, dz = hp.z - n.z, d = Math.hypot(dx, dz); if (d < 60) { if (d < 7) { let dy = Math.atan2(dx, dz) - n.h.group.rotation.y; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; n.h.group.rotation.y += dy * Math.min(1, dt * 5); if (t - n.waved > 25 && d < 5) { n.h.emote('wave'); n.waved = t; } } n.h.update(dt, n.st); n.h.anim.idle = Math.min(n.h.anim.idle, 5); } }
+    for (const n of npcs) { if (n.ai) continue; const dx = hp.x - n.x, dz = hp.z - n.z, d = Math.hypot(dx, dz); if (d < 60) { if (d < 7) { let dy = Math.atan2(dx, dz) - n.h.group.rotation.y; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; n.h.group.rotation.y += dy * Math.min(1, dt * 5); if (t - n.waved > 25 && d < 5) { n.h.emote('wave'); n.waved = t; } } n.h.update(dt, n.st); n.h.anim.idle = Math.min(n.h.anim.idle, 5); } }
     for (const [name, sub, x, z, r] of areas) { if (Math.hypot(hp.x - x, hp.z - z) < r) { if (curArea !== name) { curArea = name; hud.area(name, sub); if (!S.areas[name]) { S.areas[name] = 1; S.coins += 10; hud.setCoins(S.coins); save(); hud.toast(`Discovered ${name}`, '+10 coins'); audio.good(); } } break; } else if (curArea === name && Math.hypot(hp.x - x, hp.z - z) > r + 12) curArea = null; }
     for (const id in shardMeshes) { const m = shardMeshes[id]; if (!m.visible) continue; m.rotation.y = t * 1.2; m.position.y += Math.sin(t * 2) * dt * 0.12; if (m.position.distanceTo(new T.Vector3(hp.x, hp.y + 0.5, hp.z)) < 1.9) giveShard(id); }
     audio.setSea(Math.max(0, 1 - Math.max(0, hp.y) / 14) * Math.max(0, 1 - Math.abs(Math.hypot(hp.x, hp.z) - 250) / 90));

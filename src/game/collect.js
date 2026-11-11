@@ -18,6 +18,10 @@ export function initCollect(G) {
   for (let c = 0; c < 70; c++) { const x = (R() - 0.5) * 600, z = (R() - 0.5) * 600; if (grassAt(x, z) < 0.6) continue; const a = R() * 6.283, arc = R() < 0.5; for (let k = 0; k < 5; k++) add(x + Math.cos(a) * k * 1.8, z + Math.sin(a) * k * 1.8, arc ? 0.75 + Math.sin(k / 4 * Math.PI) * 1.5 : 0.75); }
   const geo = new T.CylinderGeometry(0.24, 0.24, 0.06, 20).rotateX(Math.PI / 2);
   const mat = new T.MeshPhysicalMaterial({ color: '#ffc928', emissive: '#ff9d00', emissiveIntensity: 0.45, metalness: 0.6, roughness: 0.22, clearcoat: 1, envMapIntensity: 4 });
+  // optional look: water droplets instead of coins (journal setting)
+  const dropGeo = new T.LatheGeometry([[0, -0.26], [0.13, -0.24], [0.21, -0.14], [0.22, -0.02], [0.16, 0.12], [0.07, 0.26], [0, 0.36]].map(([x, y]) => new T.Vector2(x, y)), 18);
+  const dropMat = new T.MeshPhysicalMaterial({ color: '#5fd0ff', emissive: '#1f9cf0', emissiveIntensity: 0.55, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.9, envMapIntensity: 5 });
+  G.setCoinStyle = (st) => { S.coinStyle = st; mesh.geometry = st === 'drops' ? dropGeo : geo; mesh.material = st === 'drops' ? dropMat : mat; document.getElementById('hud').classList.toggle('drops', st === 'drops'); save(); };
   const mesh = new T.InstancedMesh(geo, mat, coins.length); mesh.castShadow = true; mesh.frustumCulled = false; G.world.add(mesh); const d = new T.Object3D();
   // Sun Stars: hand-placed where curiosity takes you
   const starSpots = [[P.x, P.z, 4.4, 'On the fountain statue'], [P.x - 39, P.z + 6, 5.6, 'Atop the old arch'], [G.hall.x, G.hall.z, 17, 'Crown of the Town Hall dome'], [P.x + 30, P.z + 24, 9.0, 'Shop rooftop'], [P.x - 18, P.z - 34, 8.6, 'Pink shop roof'],
@@ -42,10 +46,10 @@ export function initCollect(G) {
     for (let i = 0; i < coins.length; i++) { const c = coins[i]; if (S.got[c.id]) { if (!c.hid) { d.position.set(0, -500, 0); d.scale.setScalar(0.001); d.updateMatrix(); mesh.setMatrixAt(i, d.matrix); c.hid = true; mesh.instanceMatrix.needsUpdate = true; } continue; }
       const dx = c.x - hp.x, dz = c.z - hp.z, d2 = dx * dx + dz * dz; if (d2 > 8000) continue;
       if (d2 < 0.85 && Math.abs(c.y - hy) < 1.25) { S.got[c.id] = 1; S.coins++; save(); audio.coin(combo++); comboT = 1.2; G.sparkle(c.x, c.y, c.z, 7, 2.2); G.hud.setCoins(S.coins); continue; }
-      d.position.set(c.x, c.y + Math.sin(t * 2.4 + i) * 0.08, c.z); d.rotation.set(0, t * 2.6 + i * 0.7, 0); d.scale.setScalar(1); d.updateMatrix(); mesh.setMatrixAt(i, d.matrix); }
+      d.position.set(c.x, c.y + Math.sin(t * 2.4 + i) * 0.08, c.z); d.rotation.set(0, S.coinStyle === 'drops' ? 0 : t * 2.6 + i * 0.7, 0); d.scale.setScalar(1); d.updateMatrix(); mesh.setMatrixAt(i, d.matrix); }
     mesh.instanceMatrix.needsUpdate = true;
     for (const s of stars) { if (!s.m.visible) continue; s.m.rotation.y = t * 1.6; s.m.position.y = s.y + Math.sin(t * 1.8 + s.x) * 0.14; if (Math.hypot(s.x - hp.x, s.z - hp.z) < 1.15 && Math.abs(s.m.position.y - hy) < 1.5) { s.m.visible = false; S.stars[s.id] = 1; S.coins += 5; save(); audio.star(); G.sparkle(s.x, s.m.position.y, s.z, 30, 4.5); G.hud.setCoins(S.coins); G.hud.setStars(Object.keys(S.stars).length, stars.length); G.hud.toast('★ Sun Star found!', s.hint + ' · +5 coins'); G.hero.emote('celebrate'); emit('star'); } }
     const p = bg.attributes.position.array; for (let i = 0; i < NB; i++) { if (bl[i] <= 0) continue; bl[i] -= dt; bv[i * 3 + 1] -= 9 * dt; p[i * 3] += bv[i * 3] * dt; p[i * 3 + 1] += bv[i * 3 + 1] * dt; p[i * 3 + 2] += bv[i * 3 + 2] * dt; if (bl[i] <= 0) p[i * 3 + 1] = -999; } bg.attributes.position.needsUpdate = true;
   });
-  G.hud.setCoins(S.coins); G.hud.setStars(Object.keys(S.stars).length, stars.length); G.coinTotal = coins.length;
+  G.hud.setCoins(S.coins); G.hud.setStars(Object.keys(S.stars).length, stars.length); G.coinTotal = coins.length; if (S.coinStyle === 'drops') G.setCoinStyle('drops');
 }

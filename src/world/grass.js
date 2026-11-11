@@ -23,11 +23,12 @@ void main(){
   vec4 mvPosition=viewMatrix*vec4(wp,1.); gl_Position=projectionMatrix*mvPosition;
   #include <fog_vertex>
 }`;
+export const GLUM = { value: new T.Vector3(1, 1, 1) };
 const FRAG = `
-varying vec3 vCol;varying float vFade;
+uniform vec3 lum;varying vec3 vCol;varying float vFade;
 #include <common>
 #include <fog_pars_fragment>
-void main(){ if(vFade<.02) discard; gl_FragColor=vec4(vCol,1.);
+void main(){ if(vFade<.02) discard; gl_FragColor=vec4(vCol*lum,1.);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>
@@ -64,7 +65,7 @@ export function buildGrass(depthTex, depthSize) {
     }
   }
   const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.setAttribute('offset', new T.Float32BufferAttribute(off, 3)); geo.setAttribute('info', new T.Float32BufferAttribute(info, 4)); geo.setIndex(idx);
-  const U = T.UniformsUtils.merge([T.UniformsLib.fog, { tmap: { value: null }, tsize: { value: depthSize }, tile: { value: TILE }, time: { value: 0 }, cam: { value: new T.Vector3() }, hero: { value: new T.Vector3() }, heroVel: { value: new T.Vector2() } }]); U.tmap.value = depthTex;
+  const U = T.UniformsUtils.merge([T.UniformsLib.fog, { tmap: { value: null }, tsize: { value: depthSize }, tile: { value: TILE }, time: { value: 0 }, cam: { value: new T.Vector3() }, hero: { value: new T.Vector3() }, heroVel: { value: new T.Vector2() } }]); U.tmap.value = depthTex; U.lum = GLUM;
   const mat = new T.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: FRAG, vertexColors: true, side: T.DoubleSide, fog: true });
   const mesh = new T.Mesh(geo, mat); mesh.frustumCulled = false; mesh.name = 'Meadow';
   return { mesh, update(dt, camPos, heroPos) { U.time.value += dt; U.cam.value.copy(camPos); U.hero.value.copy(heroPos); } };

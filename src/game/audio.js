@@ -24,6 +24,8 @@ export const audio = {
   bad() { if (!ctx) return; const t = ctx.currentTime; tone(280, t, 0.18, 'triangle', 0.1, master, 0.75); tone(210, t + 0.12, 0.25, 'triangle', 0.1, master, 0.8); },
   fanfare() { if (!ctx) return; const t = ctx.currentTime; [0, 4, 7, 12, 7, 12, 16, 19].forEach((n, i) => tone(392 * Math.pow(2, n / 12), t + i * 0.11, 0.5, 'triangle', 0.15)); },
   bounce() { if (!ctx) return; tone(220, ctx.currentTime, 0.12, 'sine', 0.1, master, 1.5); },
+  chirp() { if (!ctx) return; const t = ctx.currentTime, f = 2400 + Math.random() * 1400; for (let i = 0; i < 2 + ((Math.random() * 3) | 0); i++) tone(f * (1 + Math.random() * 0.2), t + i * 0.09, 0.07, 'sine', 0.035, master, 1.25); },
+  purr() { if (!ctx) return; const t = ctx.currentTime; for (let i = 0; i < 14; i++) tone(52 + (i % 2) * 6, t + i * 0.07, 0.07, 'sawtooth', 0.03); },
   glide(on) { if (!ctx) return; if (on && !beds.glide) beds.glide = noiseBed(1500, 1.2, 0.03, 9); if (beds.glide) beds.glide.gain.setTargetAtTime(on ? 0.035 : 0, ctx.currentTime, 0.08); },
 };
 addEventListener('pointerdown', () => audio.start(), { once: true }); addEventListener('keydown', () => audio.start(), { once: true });

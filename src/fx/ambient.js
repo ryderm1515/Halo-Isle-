@@ -24,6 +24,7 @@ export function initAmbient(G) {
   // ---- gulls gliding in wide circles
   const gulls = [], gg = new T.BufferGeometry(); gg.setAttribute('position', new T.Float32BufferAttribute([0, 0, 0.35, 1.5, 0.15, 0.1, 0.9, 0.1, -0.25, 0, 0, -0.3, 0, 0, 0.35, -1.5, 0.15, 0.1, -0.9, 0.1, -0.25], 3)); gg.setIndex([0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 3, 6]);
   for (let i = 0; i < 9; i++) { const m = new T.Mesh(gg, new T.MeshBasicMaterial({ color: '#ffffff', side: T.DoubleSide, fog: false })); root.add(m); gulls.push({ m, cx: (R() - 0.5) * 420, cz: (R() - 0.5) * 420 + 120, r: 40 + R() * 90, h: 38 + R() * 60, sp: (0.08 + R() * 0.08) * (R() < 0.5 ? 1 : -1), ph: R() * 6.28 }); }
+  G.ambientDay = (k) => { pol.material.opacity = 0.8 * k; for (const f of flies) f.g.visible = k > 0.4; };
   let t = 0;
   G.systems.push((dt, g) => {
     t += dt;

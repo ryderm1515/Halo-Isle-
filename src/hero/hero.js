@@ -52,8 +52,9 @@ export async function createHero(loader, opts = {}) {
       const moving = s.grounded && sp > 0.4;
       A.phase += dt * (moving ? 6.2 + sp * 1.55 : 0);
       A.move = damp(A.move, moving ? 1 : 0, 11, dt); A.air = damp(A.air, s.grounded ? 0 : 1, 14, dt);
-      A.lean = damp(A.lean, moving ? 0.1 + run * 0.2 : 0, 8, dt); A.roll = damp(A.roll, clamp(-s.turn * 0.07, -0.3, 0.3) * A.move, 8, dt);
-      if (moving || !s.grounded || s.input) { if (A.sleep > 0.5) api.emote('surprised'); A.idle = 0; } else A.idle += dt;
+      A.slide = damp(A.slide || 0, s.sliding ? 1 : 0, 12, dt); A.skid = damp(A.skid || 0, s.skid ? 1 : 0, 14, dt);
+      A.lean = damp(A.lean, (moving ? 0.1 + run * 0.2 + (s.sprint ? 0.12 : 0) : 0) - A.skid * 0.4 - A.slide * 0.75, 9, dt); A.roll = damp(A.roll, clamp(-s.turn * 0.07, -0.3, 0.3) * A.move, 8, dt);
+      if (s.sitting) A.idle = Math.min(A.idle, 30); if ((moving || !s.grounded || s.input) && !s.sitting) { if (A.sleep > 0.5) api.emote('surprised'); A.idle = 0; } else A.idle += dt;
       // squash & stretch spring
       if (s.justJumped) A.sqV += 5.2;
       if (s.justLanded) { A.sqV -= clamp(s.landSpeed * 0.42, 1.6, 6.5); A.leafZV -= 9; A.wobV += 3; }
@@ -62,7 +63,7 @@ export async function createHero(loader, opts = {}) {
       // emotes / idle behaviour
       let em = A.emote, k = 0;
       if (em) { A.emoteT += dt; k = Math.sin(Math.min(1, A.emoteT / 0.18) * Math.PI / 2) * sm(EM[em], EM[em] - 0.25, A.emoteT); if (A.emoteT > EM[em] || (moving && em !== 'celebrate' && A.emoteT > 0.25)) { A.emote = null; } }
-      const wantSit = A.idle > 22 && !em, wantSleep = A.idle > 40 && !em;
+      const wantSit = (A.idle > 22 && !em) || s.sitting, wantSleep = A.idle > 40 && !em && !s.sitting;
       A.sit = damp(A.sit, wantSit ? 1 : 0, wantSit ? 5 : 10, dt); A.sleep = damp(A.sleep, wantSleep ? 1 : 0, 3, dt);
       if (!em && A.idle > 7 && A.idle < 20 && Math.random() < dt * 0.09) api.emote(['wave', 'think', 'happy', 'confused'][(Math.random() * 4) | 0]), A.idle = 8;
       // look-around + head tilt while idle
@@ -74,15 +75,15 @@ export async function createHero(loader, opts = {}) {
       // ---- pose
       const ph = A.phase, bob = Math.abs(Math.sin(ph)), breathe = Math.sin(t * (2.1 - A.sleep * 0.9)) * (0.016 + A.sleep * 0.03);
       const hop = em === 'celebrate' ? Math.abs(Math.sin(A.emoteT * 7.5)) * 0.32 * k : em === 'happy' || em === 'laugh' ? Math.abs(Math.sin(A.emoteT * 11)) * 0.07 * k : 0;
-      const st = 1 + A.sq + A.air * clamp(Math.abs(s.vy) * 0.014, 0, 0.14) + breathe - A.move * (1 - bob) * 0.07 - A.sit * 0.1;
+      const st = 1 + A.sq + A.air * clamp(Math.abs(s.vy) * 0.014, 0, 0.14) + breathe - A.move * (1 - bob) * 0.07 - A.sit * 0.1 - A.slide * 0.16;
       const wide = 1 / Math.sqrt(Math.max(0.3, st));
       squash.scale.set(wide * (1 + A.wob * 0.05), st, wide * (1 - A.wob * 0.05)); squash.position.y = hop + A.move * bob * 0.07 - A.sit * 0.02;
-      squash.rotation.set(0, 0, 0);
+      squash.rotation.set(s.flip ? s.flip * Math.PI * 2 : 0, 0, 0); if (s.flip) squash.position.y += 0.5 * Math.sin(s.flip * Math.PI);
       if (s.swim) { squash.position.y += Math.sin(t * 2.4) * 0.04 - 0.38; }
       let bx = A.lean + A.sit * -0.12, bz = A.roll + Math.sin(ph) * 0.085 * A.move, by = Math.sin(ph) * 0.1 * A.move;
       let hx = -A.lean * 0.55 + A.lookX + A.sleep * 0.42 - A.air * clamp(s.vy * 0.02, -0.25, 0.25), hy = A.lookY, hz = A.tilt - bz * 0.6;
       let aLx = Math.sin(ph + Math.PI) * (0.55 + run * 0.6) * A.move, aRx = Math.sin(ph) * (0.55 + run * 0.6) * A.move, aLz = 0.03 * Math.sin(t * 2.1) + run * 0.25 * A.move, aRz = aLz;
-      aLz += A.air * 1.25; aRz += A.air * 1.25; aLx -= A.air * 0.3; aRx -= A.air * 0.3;
+      { const rise = clamp(s.vy * 0.05, -0.25, 0.5); aLz += A.air * (0.32 + rise * 0.5); aRz += A.air * (0.32 + rise * 0.5); aLx -= A.air * (0.35 + rise); aRx -= A.air * (0.35 + rise); }   // arms trail the jump instead of flapping out
       aLz -= A.sit * 0.12; aRz -= A.sit * 0.12; aLx -= A.sit * 0.5; aRx -= A.sit * 0.5;
       let expr = A.expr;
       if (em === 'wave') { aLz = lerp(aLz, 2.25 + Math.sin(A.emoteT * 15) * 0.38, k); aLx = lerp(aLx, -0.2, k); hz += 0.16 * k; bz -= 0.06 * k; expr = 'happy'; }
@@ -95,6 +96,8 @@ export async function createHero(loader, opts = {}) {
       else if (em === 'love') { hz += 0.18 * k; aLx -= 1.0 * k; aRx -= 1.0 * k; aLz += 0.3 * k; aRz += 0.3 * k; expr = 'heart'; }
       else if (em === 'sad') { hx += 0.45 * k; bx += 0.12 * k; aLz -= 0.1 * k; expr = 'sad'; }
       else if (em === 'determined') { bx += 0.1 * k; aLz += 0.5 * k; aRz += 0.5 * k; aLx -= 0.7 * k; aRx -= 0.7 * k; expr = 'angry'; }
+      if (A.slide > 0.02) { aLx = lerp(aLx, 0.9, A.slide); aRx = lerp(aRx, 0.9, A.slide); aLz = lerp(aLz, 0.5, A.slide); aRz = lerp(aRz, 0.5, A.slide); hx += 0.5 * A.slide; if (s.sliding) expr = 'happy'; }
+      if (A.skid > 0.02) { aLz = lerp(aLz, 0.9, A.skid); aRz = lerp(aRz, 0.9, A.skid); hx += 0.2 * A.skid; }
       A.glide = damp(A.glide || 0, s.gliding ? 1 : 0, 12, dt); if (A.glide > 0.02) { aLz = lerp(aLz, 1.45, A.glide); aRz = lerp(aRz, 1.45, A.glide); aLx = lerp(aLx, 0.2, A.glide); aRx = lerp(aRx, 0.2, A.glide); bx += 0.3 * A.glide; hx -= 0.25 * A.glide; if (s.gliding) expr = 'happy'; }
       if (s.excited && !em) expr = 'star';
       if (A.sleep > 0.4) expr = 'sleepy'; else if (A.blink > 0 && (expr === 'neutral' || expr.startsWith('look'))) expr = 'blink';
@@ -108,8 +111,8 @@ export async function createHero(loader, opts = {}) {
       // feet: step cycle, tuck in the air, slide forward when sitting
       for (const [n, o] of [['footL', 0], ['footR', Math.PI]]) {
         const p = ph + o, lift = Math.max(0, Math.cos(p)) * 0.085 * A.move, fwd = Math.sin(p) * (0.1 + run * 0.07) * A.move;
-        pos(n, 0, lift + A.air * 0.05 + A.sit * 0.0, fwd + A.sit * 0.13 - A.air * 0.03);
-        rot(n, -Math.cos(p) * 0.55 * A.move + A.air * 0.5 - A.sit * 0.55, 0, 0);
+        pos(n, 0, lift * (1 - A.slide) + A.air * 0.05, fwd * (1 - A.slide) + A.sit * 0.13 - A.air * 0.03 + A.slide * 0.16 + A.skid * 0.08);
+        rot(n, -Math.cos(p) * 0.55 * A.move * (1 - A.slide) + A.air * 0.5 - A.sit * 0.55 - A.slide * 0.7 - A.skid * 0.35, 0, 0);
       }
       // leaf: damped spring dragged by motion
       const tY = clamp(sp * 0.085, 0, 0.75) * (s.grounded ? 1 : 0.6), tZ = clamp(-s.vy * 0.05, -0.7, 0.8) - A.sleep * 0.5 + (em === 'sad' ? -0.5 * k : 0) + (em === 'surprised' || em === 'celebrate' ? 0.35 * k : 0);

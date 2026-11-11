@@ -31,7 +31,8 @@ const water = buildWater(terrain.depthTex, terrain.depthSize); scene.add(water.m
 const grass = buildGrass(terrain.depthTex, terrain.depthSize); scene.add(grass.mesh);
 const loader = new GLTFLoader();
 if (window.__GLB) { const orig = loader.loadAsync.bind(loader); loader.loadAsync = (url) => { const b = window.__GLB[url.replace('./assets/', '')]; if (!b) return orig(url); return loader.parseAsync(Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer, ''); }; }   // hosted build: models ship inside a script
-const G = (window.game = { scene, camera, renderer, T, look: post, heightAt, SPOTS, ready: false, frames: 0, systems: [] });
+const hemi = scene.children.find((o) => o.isHemisphereLight);
+const G = (window.game = { scene, camera, renderer, T, look: post, sun, hemi, skyApi: sky, terrain, heightAt, SPOTS, ready: false, frames: 0, systems: [] });
 const hero = await createHero(loader); scene.add(hero.group);
 const ctl = createController(hero, camera); bindPointer(canvas);
 G.hero = hero; G.ctl = ctl;
@@ -48,8 +49,10 @@ const { initLandmarks } = await import('./world/landmarks.js'); await initLandma
 const { initAmbient } = await import('./fx/ambient.js'); initAmbient(G);
 const { createHud } = await import('./ui/hud.js'); G.hud = createHud();
 const { initGame } = await import('./game/game.js'); await initGame(G, loader);
+for (const [file, fn] of [['./game/extras.js', 'initExtras'], ['./game/life.js', 'initLife'], ['./game/travel.js', 'initTravel'], ['./world/daynight.js', 'initDayNight'], ['./world/interiors.js', 'initInteriors'], ['./game/more.js', 'initMore']]) { try { const m = await import(/* @vite-ignore */ file); await m[fn]?.(G, loader); } catch (e) { console.error('module failed', file, e); } }
 
 if (Q.has('studio')) { ctl.cam.lookH = 0.5; terrain.mesh.visible = grass.mesh.visible = water.mesh.visible = sky.sky.visible = sky.clouds.visible = false; scene.background = new T.Color('#e9f1fb'); scene.fog = null; const fl = new T.Mesh(new T.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ color: '#eef4fc', roughness: 0.9 })); fl.receiveShadow = true; fl.position.copy(ctl.pos).y += 0.002; scene.add(fl); }
+if (Q.has('time') && G.time) { G.time.set(+Q.get('time')); G.time.paused = true; }
 const clock = new T.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -57,7 +60,7 @@ function frame() {
   WIND.time.value += dt; if (post) post.dof.focus.value = camera.position.distanceTo(ctl.cam.look);
   for (const s of G.systems) s(dt, G);
   { const gy = groundAt(ctl.pos.x, ctl.pos.z, ctl.pos.y + 0.3), air = Math.max(0, ctl.pos.y - gy); blob.position.set(ctl.pos.x, Math.max(gy, -0.02) + 0.06, ctl.pos.z); const k = 1 / (1 + air * 0.55); blob.scale.setScalar(k); blob.material.opacity = 0.3 * k; blob.visible = gy > -0.3; }
-  sun.target.position.copy(ctl.pos); sun.position.copy(ctl.pos).addScaledVector(SUN_DIR, 160); sun.target.updateMatrixWorld();
+  sun.target.position.copy(ctl.pos); sun.position.copy(ctl.pos).addScaledVector(G.lightDir || SUN_DIR, 160); sun.target.updateMatrixWorld();
   sky.update(dt, camera.position); water.update(dt, camera.position); grass.update(dt, ctl.cam.look, ctl.pos);
   if (post) post.render(); else renderer.render(scene, camera); G.frames++;
   requestAnimationFrame(frame);
