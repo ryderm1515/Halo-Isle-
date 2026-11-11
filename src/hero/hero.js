@@ -75,7 +75,7 @@ export async function createHero(loader, opts = {}) {
       A.move = damp(A.move, moving ? sm(0.2, 1.4, sp) : 0, 12, dt); A.run = damp(A.run, moving ? sm(3.2, 7.2, sp) : 0, 8, dt); A.sprint = damp(A.sprint, moving ? sm(8, 10.4, sp) : 0, 6, dt);
       A.air = damp(A.air, s.grounded || s.swim ? 0 : 1, 16, dt);
       // step rate comes from distance covered: a planted foot travels back exactly as fast as the body moves, so it does not slide
-      { const r0 = sm(3.2, 7.2, sp), w0 = sm(0.2, 2.6, sp), s0 = sm(8, 10.4, sp); A.Az = lerp(lerp(0.09, 0.185, w0), 0.245, r0) + 0.03 * s0; A.stance = lerp(0.6, 0.38, r0) - 0.05 * s0; const f = clamp(sp * A.stance / (2 * A.Az), 0, 5.6); if (!api.freeze) A.phase += dt * TAU * f * (moving ? 1 : 0); }
+      { const r0 = sm(3.2, 7.2, sp), w0 = sm(0.2, 2.6, sp), s0 = sm(8, 10.4, sp); A.Az = lerp(lerp(0.09, 0.185, w0), 0.245, r0) + 0.03 * s0; A.stance = lerp(0.6, 0.38, r0) - 0.05 * s0; const f = Math.min(sp * A.stance / (2 * A.Az), 2.3 + 0.55 * r0 + 0.35 * s0); if (!api.freeze) A.phase += dt * TAU * f * (moving ? 1 : 0); }
       A.acc = damp(A.acc, clamp((sp - A.lastSp) / Math.max(dt, 1e-3), -40, 40), 9, dt); A.lastSp = sp;
       A.slide = damp(A.slide, s.sliding ? 1 : 0, 12, dt); A.skid = damp(A.skid, s.skid ? 1 : 0, 14, dt); A.glide = damp(A.glide, s.gliding ? 1 : 0, 10, dt);
       A.swim = damp(A.swim, s.swim ? 1 : 0, 8, dt); A.hang = damp(A.hang, s.hang ? 1 : 0, 7, dt); A.drive = damp(A.drive, s.driving ? 1 : 0, 9, dt);
