@@ -1,17 +1,245 @@
 {
- "hero": {"glb": "characters/hero/hero.glb", "source": "characters/hero/hero.blend", "script": "pipeline/blender/make_hero.py (headless bpy 5.2.3)",
-          "origin": "original, modeled from Ryder's character sheet", "height_m": 1.0, "with_leaf_m": 1.19, "tris": 27336,
-          "rig": "11 bones: root, body, head, arm.L/R, foot.L/R, eye.L/R, leaf, leaf.tip", "clips": ["Idle","IdleLook","Walk","Run","JumpStart","Air","Land","Wave","Celebrate"],
-          "runtime_material": "jelly shader in three.js (fresnel rim + core tint, no transmission); GLB carries a plain glossy PBR fallback", "license": "project-owned"},
- "palm_a": {"glb": "environment/foliage/palm_a.glb", "source": "environment/foliage/palm.blend", "script": "pipeline/blender/make_palm.py", "origin": "original", "height_m": 5.9, "tris": 2202,
-            "collider": {"type": "capsule", "radius": 0.26}, "license": "project-owned"},
- "palm_b": {"glb": "environment/foliage/palm_b.glb", "source": "environment/foliage/palm.blend", "script": "pipeline/blender/make_palm.py", "origin": "original", "height_m": 4.7, "tris": 2232,
-            "collider": {"type": "capsule", "radius": 0.26}, "license": "project-owned"},
- "path_straight_4m": {"glb": "environment/terrain/path_straight_4m.glb", "source": "environment/terrain/path.blend", "made_in": "Ryder's Blender 5.2.2 via Blender MCP",
-            "size_m": [2.84, 0.072, 4.0], "collision": "walkable surface, +0.072 m over terrain, conforms to terrain at load", "texture": "textures/stone/stone_pathway", "license": "geometry project-owned; texture CC0"},
- "path_curve_30deg": {"glb": "environment/terrain/path_curve_30deg.glb", "source": "environment/terrain/path.blend", "made_in": "Ryder's Blender 5.2.2 via Blender MCP",
-            "size_m": [3.67, 0.072, 4.53], "collision": "walkable surface", "texture": "textures/stone/stone_pathway", "license": "geometry project-owned; texture CC0"},
- "textures/stone/stone_pathway": {"source": "https://polyhaven.com/a/stone_pathway", "author": "Amal Kumar", "license": "CC0 1.0", "license_url": "https://polyhaven.com/license",
-            "downloaded": "2026-11-10", "via": "Poly Haven public API from Ryder's Blender (MCP execute_code)", "maps": ["diff","nor_gl","rough","ao"], "resolution": "1k",
-            "adjusted": "stone_pathway_halo_basecolor.jpg: baked in Blender (desaturate 0.45, value 1.45, contrast -0.3, warm multiply #FFCCA3, AO 0.4); normal strength 0.6; tiled at 3.2 m"}
+ "models": {
+  "characters/hero/hero.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 825820
+  },
+  "environment/foliage/bush_a.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 116136
+  },
+  "environment/foliage/bush_b.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 116136
+  },
+  "environment/foliage/daisy_pink.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 17300
+  },
+  "environment/foliage/daisy_white.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 17300
+  },
+  "environment/foliage/daisy_yellow.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 17304
+  },
+  "environment/foliage/hibiscus.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 23872
+  },
+  "environment/foliage/palm_a.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 356328
+  },
+  "environment/foliage/palm_b.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 365428
+  },
+  "environment/foliage/palm_c.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 345028
+  },
+  "environment/foliage/tree_a.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 154792
+  },
+  "environment/foliage/tree_b.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 154884
+  },
+  "environment/rocks/rock_a.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 34728
+  },
+  "environment/rocks/rock_b.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 35720
+  },
+  "environment/rocks/rock_c.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 36300
+  },
+  "environment/terrain/path_curve_30deg.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 1125048
+  },
+  "environment/terrain/path_straight_4m.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 1125032
+  },
+  "landmarks/lighthouse.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 128220
+  },
+  "landmarks/observatory.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 189320
+  },
+  "landmarks/sailboat.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 24136
+  },
+  "landmarks/turbine_rotor.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 14988
+  },
+  "landmarks/turbine_tower.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 15128
+  },
+  "props/beach_ball.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 26744
+  },
+  "props/bench.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 65380
+  },
+  "props/cooler.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 15984
+  },
+  "props/fence.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 16068
+  },
+  "props/glyph_block.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 7488
+  },
+  "props/glyph_pedestal.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 17788
+  },
+  "props/lamp_post.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 81032
+  },
+  "props/life_ring_post.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 32472
+  },
+  "props/lounger.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 95692
+  },
+  "props/notice_board.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 25400
+  },
+  "props/planter_large.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 47780
+  },
+  "props/planter_small.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 47784
+  },
+  "props/sandcastle.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 131876
+  },
+  "props/signpost.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 43100
+  },
+  "props/surf_rack.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 120688
+  },
+  "props/umbrella_blue.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 65860
+  },
+  "props/umbrella_orange.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 65852
+  },
+  "props/volleyball_net.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 21112
+  },
+  "structures/fountain.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 331276
+  },
+  "structures/pier_section.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 115932
+  },
+  "structures/ruins_gate.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 177568
+  },
+  "structures/shop_blue.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 361260
+  },
+  "structures/shop_pink.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 235200
+  },
+  "structures/shop_white.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 353180
+  },
+  "structures/shop_yellow.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 225472
+  },
+  "structures/town_hall.glb": {
+   "origin": "original, scripted in Blender (pipeline/blender)",
+   "license": "project-owned",
+   "bytes": 568236
+  }
+ },
+ "textures": "see LICENSES.md and public/assets/textures/*/LICENSE.json"
 }

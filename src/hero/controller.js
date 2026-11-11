@@ -2,6 +2,8 @@ import * as T from 'three';
 import { groundAt, resolve } from '../world/colliders.js';
 import { heightAt } from '../world/terrain.js';
 import { clamp, damp } from '../util/noise.js';
+import { S, emit } from '../game/state.js';
+export const lifts = [];   // updraft columns: {x,z,r,top}
 
 const keys = new Set(); let lastInput = 0;
 export const input = { mx: 0, mz: 0, jump: false, jumpHeld: false, walk: false, lookX: 0, lookY: 0, emote: null, interact: false, any: false };
@@ -35,7 +37,7 @@ export function createController(hero, camera) {
   const state = { speed: 0, vy: 0, grounded: true, turn: 0, justJumped: false, justLanded: false, landSpeed: 0, swim: false, input: false, excited: false, wading: 0 };
   const WALK = 3.1, RUN = 7.4, G = 27, JUMP = 10.2, R = 0.3;
   const api = {
-    pos, vel, cam, state, locked: false,
+    pos, vel, cam, state, locked: false, waters: [],
     get yaw() { return yaw; }, set yaw(v) { yaw = v; },
     teleport(x, z, y) { pos.set(x, y ?? groundAt(x, z), z); vel.set(0, 0, 0); cam.pos.set(0, 0, 0); },
     update(dt) {
@@ -45,7 +47,7 @@ export function createController(hero, camera) {
       const f = api.locked ? 0 : 1, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
       const wx = (input.mx * cy + input.mz * sy) * f, wz = (-input.mx * sy + input.mz * cy) * f, wl = Math.hypot(wx, wz);
       const water = -heightAt(pos.x, pos.z), swim = water > 0.62 && pos.y <= 0.05; state.swim = swim; state.wading = clamp(water, 0, 1);
-      const top = (input.walk ? WALK : RUN) * (swim ? 0.5 : water > 0.15 ? 0.78 : 1), acc = grounded ? (wl > 0.05 ? 34 : 26) : 13;
+      const top = (input.walk ? WALK : RUN) * (swim ? 0.5 : water > 0.15 ? 0.78 : 1) * (state.gliding ? 1.25 : 1), acc = grounded ? (wl > 0.05 ? 34 : 26) : state.gliding ? 20 : 13;
       const tvx = wx * top, tvz = wz * top, dvx = tvx - vel.x, dvz = tvz - vel.z, dl = Math.hypot(dvx, dvz), step = Math.min(dl, acc * dt);
       if (dl > 1e-5) { vel.x += dvx / dl * step; vel.z += dvz / dl * step; }
       const sp = Math.hypot(vel.x, vel.z);
@@ -53,21 +55,24 @@ export function createController(hero, camera) {
       // jump (buffer + coyote + variable height + one small air flutter)
       buffer = input.jump ? 0.13 : buffer - dt; input.jump = false; coyote = grounded ? 0.11 : coyote - dt;
       if (buffer > 0 && !api.locked) {
-        if (coyote > 0) { vel.y = swim ? JUMP * 0.72 : JUMP; grounded = false; coyote = 0; buffer = 0; state.justJumped = true; airJumps = 1; }
-        else if (airJumps > 0 && !swim) { vel.y = Math.max(vel.y, JUMP * 0.72); airJumps = 0; buffer = 0; state.justJumped = true; state.flutter = true; }
+        if (coyote > 0) { vel.y = swim ? JUMP * 0.72 : JUMP; grounded = false; coyote = 0; buffer = 0; state.justJumped = true; airJumps = 1; emit('jump'); }
+        else if (airJumps > 0 && !swim) { vel.y = Math.max(vel.y, JUMP * 0.72); airJumps = 0; buffer = 0; state.justJumped = true; state.flutter = true; emit('jump', true); }
       }
       if (!grounded) { vel.y -= G * dt * (vel.y > 0 && !input.jumpHeld ? 2.1 : vel.y < 0 ? 1.25 : 1); vel.y = Math.max(vel.y, -38); }
+      // leaf glide (unlocked by the story): hold jump while falling and the leaf spins like a propeller
+      const gl = S.abilities.glide && !grounded && input.jumpHeld && vel.y < -0.5 && !swim && !api.locked; if (gl) vel.y = Math.max(vel.y, -2.1); if (gl !== state.gliding) emit('glide', gl); state.gliding = gl;
+      state.lift = false; for (const L of lifts) { if (L.off) continue; const d = Math.hypot(pos.x - L.x, pos.z - L.z); if (d < L.r && pos.y < L.top && pos.y > L.base - 1) { vel.y = damp(vel.y, pos.y > L.top - 3 ? 6 : 15, 5, dt); grounded = false; coyote = 0; airJumps = 1; state.lift = true; vel.x += (L.x - pos.x) * dt * 1.5; vel.z += (L.z - pos.z) * dt * 1.5; } }
       pos.x += vel.x * dt; pos.z += vel.z * dt; pos.y += vel.y * dt;
       resolve(pos, R);
       // stay on the map
       const lim = 400; pos.x = clamp(pos.x, -lim, lim); pos.z = clamp(pos.z, -lim, lim);
-      let g = groundAt(pos.x, pos.z, pos.y); if (g < -0.62 + 0.0) g = Math.max(g, -0.62);   // float at the surface when it gets deep
+      let g = groundAt(pos.x, pos.z, pos.y); for (const w of api.waters) { if (Math.hypot((pos.x - w.x) / w.sx, pos.z - w.z) < w.r + 1 && g < w.level - 0.62) { g = w.level - 0.62; state.swim = pos.y <= g + 0.07; } } if (g < -0.62 + 0.0) g = Math.max(g, -0.62);   // float at the surface when it gets deep
       if (grounded) {
         if (g < pos.y - 0.5) { grounded = false; } else { pos.y = g; vel.y = 0; }
         // slide off slopes that are too steep to stand on
         const e = 0.4, sxn = groundAt(pos.x + e, pos.z, pos.y + 1) - groundAt(pos.x - e, pos.z, pos.y + 1), szn = groundAt(pos.x, pos.z + e, pos.y + 1) - groundAt(pos.x, pos.z - e, pos.y + 1), slope = Math.hypot(sxn, szn) / (2 * e);
         if (slope > 1.25) { vel.x -= sxn / (2 * e) * 9 * dt; vel.z -= szn / (2 * e) * 9 * dt; }
-      } else if (pos.y <= g && vel.y <= 0) { state.landSpeed = -vel.y; pos.y = g; vel.y = 0; grounded = true; state.justLanded = true; airJumps = 0; }
+      } else if (pos.y <= g && vel.y <= 0) { state.landSpeed = -vel.y; pos.y = g; vel.y = 0; grounded = true; state.justLanded = true; airJumps = 0; emit('land', state.landSpeed, water > 0.1); }
       state.speed = sp; state.vy = vel.y; state.grounded = grounded; state.turn = turn;
       hero.group.position.copy(pos); hero.group.rotation.y = yaw;
       hero.update(dt, state); state.flutter = false;

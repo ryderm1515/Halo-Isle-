@@ -37,6 +37,14 @@ export async function initWorld(G, loader) {
     const n = b.big ? 16 : 7; for (let i = 0; i < n; i++) { const a = R() * 6.3, r = (0.5 + R() * 0.5) * b.r; const o = put(R() < 0.45 ? 'hibiscus' : ['daisy_white', 'daisy_yellow', 'daisy_pink'][(R() * 3) | 0], b.x + Math.cos(a) * r, b.z + Math.sin(a) * r, R() * 6.3, R() < 0.45 ? 1.3 + R() * 0.6 : 2.2 + R(), H + 0.5); }
   }
   { const [x, z] = pol(106 * D, 30); put('signpost', x, z, 0.4, 1, H); addCircle(x, z, 0.22); const [x2, z2] = pol(64 * D, 28); put('notice_board', x2, z2, face(x2, z2, P.x, P.z), 1, H); addBox(x2, z2, 1.0, 0.2, face(x2, z2, P.x, P.z)); }
+  // ---- rim of the plaza: palms, hedges and flower drifts between the path exits, like the key art
+  const exits = [-90, 113, -11, 177];
+  for (let a = 0; a < 360; a += 9) { if (exits.some((e) => Math.abs(((a - e + 540) % 360) - 180) < 9)) continue; const [x, z] = pol(a * D, P.r + 2.5 + R() * 1.5), h = heightAt(x, z);
+    if ((a / 9) % 2 === 0) { put(['palm_a', 'palm_b', 'palm_c'][(R() * 3) | 0], x, z, R() * 6.3, 0.95 + R() * 0.35, h - 0.05); addCircle(x, z, 0.32); } else put(R() < 0.5 ? 'bush_a' : 'bush_b', x, z, R() * 6.3, 0.9 + R() * 0.5, h - 0.05);
+    for (let k = 0; k < 5; k++) { const [fx, fz] = pol((a + (R() - 0.5) * 9) * D, P.r + 0.8 + R() * 4.5); put(R() < 0.55 ? 'hibiscus' : ['daisy_white', 'daisy_yellow', 'daisy_pink'][(R() * 3) | 0], fx, fz, R() * 6.3, 1.2 + R() * 0.9, heightAt(fx, fz)); } }
+  // ---- a second row of town behind the plaza and pastel houses up on the terraces
+  for (const [n, a, r, w] of [['shop_yellow', -133, 58, 8], ['shop_white', -100, 60, 11], ['shop_pink', 166, 58, 9], ['shop_blue', 18, 60, 10], ['shop_pink', 52, 57, 9]]) { const [x, z] = pol(a * D, r), ry = face(x, z, P.x, P.z), h = heightAt(x, z); if (h < 3) continue; put(n, x, z, ry, 1, h - 0.3); addBox(x, z, w / 2 + 0.3, 3.9, ry); }
+  { const HX = -10, HZ = -60; let placed = 0; for (let deg = 20; deg < 160 && placed < 9; deg += 13) { const a = deg * D, r = 104 + R() * 10, x = HX + Math.cos(a) * r, z = HZ + Math.sin(a) * r, h = heightAt(x, z); if (h < 30 || h > 44 || grassAt(x, z, h) < 0.5) continue; const n = ['shop_pink', 'shop_yellow', 'shop_blue', 'shop_white'][placed % 4], ry = face(x, z, P.x, P.z); put(n, x, z, ry, 0.8, h - 0.3); addBox(x, z, 4.6, 3.3, ry); placed++; } }
   // ---- island-wide foliage: instanced and chunked so only what is near/in view costs anything
   const want = { palm: [], tree: [], bush: [], rock: [] }, far = (x, z, p, r) => Math.hypot(x - p.x, z - p.z) > r;
   for (let i = 0; i < 9000; i++) {

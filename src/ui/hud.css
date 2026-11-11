@@ -1,0 +1,45 @@
+#hud { font-family: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Varela Round", "Nunito", system-ui, sans-serif; color: #1c5aa8; --glass: linear-gradient(180deg, rgba(255,255,255,.92) 0%, rgba(214,240,255,.74) 48%, rgba(170,220,255,.66) 100%); }
+#hud .glass { background: var(--glass); border: 2px solid rgba(255,255,255,.95); box-shadow: 0 6px 18px rgba(16,84,150,.28), inset 0 2px 0 rgba(255,255,255,.9), inset 0 -8px 14px rgba(120,190,255,.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); position: relative; overflow: hidden; }
+#hud .glass::before { content: ""; position: absolute; left: 6%; right: 6%; top: 3px; height: 42%; border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,0)); pointer-events: none; }
+#hud .tl { position: absolute; left: 18px; top: 16px; display: flex; gap: 8px; align-items: center; }
+#hud .pill { border-radius: 999px; padding: 5px 14px 5px 6px; display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 19px; letter-spacing: .2px; }
+#hud .pill b { position: relative; min-width: 22px; text-align: left; }
+#hud .ico { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; position: relative; flex: none; }
+#hud .ico.coin { background: radial-gradient(circle at 35% 30%, #fff6b0, #ffc928 55%, #f09a00); box-shadow: inset 0 -2px 3px rgba(160,80,0,.4), 0 1px 2px rgba(120,70,0,.4); }
+#hud .ico.coin::after { content: ""; width: 14px; height: 9px; border-radius: 7px 7px 3px 3px; background: rgba(255,255,255,.85); }
+#hud .ico.star { background: none; font-size: 25px; color: #ffc928; text-shadow: 0 1px 2px rgba(150,80,0,.5); }
+#hud .shards { display: flex; gap: 4px; padding: 7px 12px; border-radius: 999px; }
+#hud .shards i { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(60,150,230,.55); background: rgba(255,255,255,.5); position: relative; }
+#hud .shards i.on { background: radial-gradient(circle at 35% 30%, #fff, #7fe6ff 50%, #2aa8f0); border-color: #fff; box-shadow: 0 0 8px #7fe6ff; }
+#hud .map { position: absolute; right: 18px; top: 16px; width: 132px; height: 132px; border-radius: 50%; padding: 0; }
+#hud .map canvas { width: 100%; height: 100%; border-radius: 50%; display: block; }
+#hud .map .n { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #1c5aa8; z-index: 2; }
+#hud .prompt { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); border-radius: 999px; padding: 7px 18px 7px 8px; display: flex; gap: 9px; align-items: center; font-weight: 800; font-size: 17px; transition: opacity .18s, transform .18s; }
+#hud .key { min-width: 28px; height: 28px; padding: 0 7px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(180deg, #5fc0ff, #1f86e6); color: #fff; font-size: 15px; box-shadow: inset 0 2px 0 rgba(255,255,255,.55), 0 2px 0 #1565b8; position: relative; }
+#hud .hide { opacity: 0 !important; pointer-events: none; }
+#hud .area { position: absolute; left: 50%; top: 13%; transform: translateX(-50%); text-align: center; color: #fff; text-shadow: 0 2px 0 rgba(20,90,170,.55), 0 4px 18px rgba(10,60,130,.55); transition: opacity .7s, letter-spacing 1.2s; opacity: 0; letter-spacing: 1px; }
+#hud .area.show { opacity: 1; letter-spacing: 4px; }
+#hud .area h1 { margin: 0; font-size: 46px; font-weight: 900; font-style: italic; } #hud .area p { margin: 2px 0 0; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+#hud .area hr { border: 0; height: 3px; border-radius: 3px; background: linear-gradient(90deg, transparent, #fff, transparent); margin: 6px auto; width: 70%; }
+#hud .toasts { position: absolute; right: 18px; top: 160px; display: flex; flex-direction: column; gap: 7px; align-items: flex-end; }
+#hud .toast { border-radius: 16px; padding: 7px 14px; font-weight: 800; font-size: 15px; animation: tin .35s cubic-bezier(.2,1.4,.4,1); max-width: 300px; }
+#hud .toast small { display: block; font-weight: 700; opacity: .75; font-size: 12px; }
+@keyframes tin { from { transform: translateX(40px) scale(.9); opacity: 0; } }
+#hud .dialog { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); width: min(620px, 86vw); border-radius: 26px; padding: 14px 22px 16px; font-size: 19px; font-weight: 700; line-height: 1.35; transition: opacity .2s, transform .25s cubic-bezier(.2,1.4,.4,1); }
+#hud .dialog.hide { transform: translateX(-50%) translateY(18px) scale(.96); }
+#hud .dialog .who { display: inline-block; margin: -4px 0 6px -6px; padding: 2px 12px; border-radius: 999px; background: linear-gradient(180deg, #5fc0ff, #1f86e6); color: #fff; font-size: 14px; position: relative; box-shadow: inset 0 2px 0 rgba(255,255,255,.5); }
+#hud .dialog .more { position: absolute; right: 16px; bottom: 9px; font-size: 13px; opacity: .7; animation: bob 1s infinite; } @keyframes bob { 50% { transform: translateY(3px); } }
+#hud .act { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); border-radius: 22px; padding: 6px 20px 8px; text-align: center; font-weight: 900; transition: opacity .2s; }
+#hud .act .nm { font-size: 13px; letter-spacing: 1px; opacity: .8; position: relative; } #hud .act .tm { font-size: 30px; font-variant-numeric: tabular-nums; position: relative; line-height: 1; } #hud .act .sc { font-size: 15px; position: relative; }
+#hud .result { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 30px; padding: 22px 38px; text-align: center; font-weight: 800; min-width: 300px; transition: opacity .25s, transform .35s cubic-bezier(.2,1.5,.4,1); }
+#hud .result.hide { transform: translate(-50%,-46%) scale(.85); }
+#hud .result h2 { margin: 0 0 4px; font-size: 30px; font-style: italic; position: relative; } #hud .result .medal { font-size: 64px; line-height: 1.1; position: relative; filter: drop-shadow(0 4px 6px rgba(20,80,150,.35)); } #hud .result p { margin: 3px 0; font-size: 17px; position: relative; }
+#hud .journal { position: absolute; inset: 7% 12%; border-radius: 34px; padding: 26px 34px; overflow: auto; pointer-events: auto; transition: opacity .2s, transform .3s cubic-bezier(.2,1.3,.4,1); }
+#hud .journal.hide { transform: scale(.95); }
+#hud .journal h2 { margin: 0 0 12px; font-size: 32px; font-style: italic; position: relative; } #hud .journal h3 { margin: 16px 0 6px; font-size: 17px; letter-spacing: 1px; position: relative; opacity: .8; }
+#hud .journal .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 9px; position: relative; }
+#hud .journal .card { background: rgba(255,255,255,.6); border: 2px solid #fff; border-radius: 16px; padding: 9px 13px; font-weight: 800; font-size: 15px; } #hud .journal .card small { display: block; opacity: .7; font-size: 12.5px; font-weight: 700; } #hud .journal .card.lock { opacity: .5; }
+#hud .journal .sw { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; display: inline-block; vertical-align: middle; margin-right: 8px; box-shadow: 0 2px 5px rgba(20,80,150,.3); }
+#hud .journal button { font: inherit; font-weight: 800; color: #fff; border: 0; border-radius: 999px; padding: 4px 13px; background: linear-gradient(180deg, #5fc0ff, #1f86e6); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 2px 0 #1565b8; cursor: pointer; float: right; }
+#hud .help { position: absolute; left: 18px; bottom: 16px; border-radius: 18px; padding: 8px 14px; font-size: 13px; font-weight: 700; line-height: 1.5; transition: opacity 1s; } #hud .help span { position: relative; }
+#hud .fade { position: absolute; inset: 0; background: #fff; opacity: 0; transition: opacity .6s; pointer-events: none; }

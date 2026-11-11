@@ -1,7 +1,9 @@
 import * as T from 'three';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { makeEyeAtlas } from './eyes.js';
 import { sm, damp, clamp, lerp } from '../util/noise.js';
 
+export const TINTS = { sky: ['#5fc4fb', '#2f9cf5', 'Sky Blue', 0], mint: ['#63e6b4', '#1fbf88', 'Mint', 60], peach: ['#ffb38a', '#ff8a5c', 'Peach', 60], grape: ['#b79bff', '#8a63f0', 'Grape', 90], lemon: ['#ffe566', '#f5c518', 'Lemon', 90], rose: ['#ff9cc0', '#f76a9c', 'Rose', 120], pearl: ['#f2f7ff', '#bcd4f5', 'Pearl', 200], tide: ['#4fe0e6', '#16b3c4', 'Tide', 120] };
 export function jellyMaterial() {
   const m = new T.MeshPhysicalMaterial({ color: '#5fc4fb', roughness: 0.13, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: '#2f9cf5', emissiveIntensity: 0.5, envMapIntensity: 4.2, sheen: 0.4, sheenColor: '#bfeaff', sheenRoughness: 0.4 });
   m.onBeforeCompile = (s) => {
@@ -17,9 +19,10 @@ export function jellyMaterial() {
 }
 
 const BONES = ['root', 'body', 'head', 'armL', 'armR', 'footL', 'footR', 'leaf1', 'leaf2', 'leaf3'];
-export async function createHero(loader, envMap) {
-  const gltf = await loader.loadAsync('./assets/characters/hero/hero.glb');
-  const model = gltf.scene, eyes = makeEyeAtlas(), jelly = jellyMaterial();
+let heroGltf = null;
+export async function createHero(loader, opts = {}) {
+  heroGltf ||= await loader.loadAsync('./assets/characters/hero/hero.glb');
+  const model = SkeletonUtils.clone(heroGltf.scene), eyes = makeEyeAtlas(), jelly = jellyMaterial();
   model.traverse((o) => {
     if (!o.isMesh) return; o.castShadow = true; o.frustumCulled = false;
     const n = o.material.name;
@@ -39,7 +42,8 @@ export async function createHero(loader, envMap) {
     blinkT: 2.5, blink: 0, idle: 0, emote: null, emoteT: 0, expr: 'neutral', sit: 0, sleep: 0, wob: 0, wobV: 0, lean: 0, roll: 0, hop: 0 };
   const EM = { wave: 2.2, celebrate: 1.9, surprised: 0.9, confused: 2.2, happy: 1.6, love: 2.2, laugh: 1.8, sad: 2.2, think: 2.6, determined: 1.6 };
   const api = {
-    group, bones: B, anim: A,
+    group, bones: B, anim: A, jelly,
+    setTint(k) { const t = TINTS[k] || TINTS.sky; jelly.color.set(t[0]); jelly.emissive.set(t[1]); },
     emote(name) { if (!EM[name]) return; A.emote = name; A.emoteT = 0; A.idle = 0; if (name === 'surprised' || name === 'celebrate') A.sqV += 4; },
     setExpression(n) { A.expr = n; },
     get emoting() { return A.emote; },
@@ -91,6 +95,7 @@ export async function createHero(loader, envMap) {
       else if (em === 'love') { hz += 0.18 * k; aLx -= 1.0 * k; aRx -= 1.0 * k; aLz += 0.3 * k; aRz += 0.3 * k; expr = 'heart'; }
       else if (em === 'sad') { hx += 0.45 * k; bx += 0.12 * k; aLz -= 0.1 * k; expr = 'sad'; }
       else if (em === 'determined') { bx += 0.1 * k; aLz += 0.5 * k; aRz += 0.5 * k; aLx -= 0.7 * k; aRx -= 0.7 * k; expr = 'angry'; }
+      A.glide = damp(A.glide || 0, s.gliding ? 1 : 0, 12, dt); if (A.glide > 0.02) { aLz = lerp(aLz, 1.45, A.glide); aRz = lerp(aRz, 1.45, A.glide); aLx = lerp(aLx, 0.2, A.glide); aRx = lerp(aRx, 0.2, A.glide); bx += 0.3 * A.glide; hx -= 0.25 * A.glide; if (s.gliding) expr = 'happy'; }
       if (s.excited && !em) expr = 'star';
       if (A.sleep > 0.4) expr = 'sleepy'; else if (A.blink > 0 && (expr === 'neutral' || expr.startsWith('look'))) expr = 'blink';
       else if (expr === 'neutral' && Math.abs(A.lookY) > 0.3) expr = A.lookY > 0 ? 'look_l' : 'look_r';
@@ -111,7 +116,8 @@ export async function createHero(loader, envMap) {
       A.leafYV += ((tY - A.leafY) * 90 - A.leafYV * 7) * dt; A.leafY += A.leafYV * dt;
       A.leafZV += ((tZ - A.leafZ) * 110 - A.leafZV * 6.5) * dt; A.leafZ += A.leafZV * dt;
       const sw = Math.sin(t * 1.7) * 0.05 + Math.sin(ph * 2) * 0.07 * A.move;
-      rot('leaf1', 0, A.leafY * 0.35, A.leafZ * 0.3 + sw * 0.5); rot('leaf2', 0, A.leafY * 0.45, A.leafZ * 0.45 + sw); rot('leaf3', 0, A.leafY * 0.5, A.leafZ * 0.55 + sw * 1.3);
+      A.spin = (A.spin || 0) + dt * 26 * A.glide;
+      rot('leaf1', 0, A.leafY * 0.35 + A.spin, A.leafZ * 0.3 + sw * 0.5 + A.glide * 0.25); rot('leaf2', 0, A.leafY * 0.45, A.leafZ * 0.45 + sw); rot('leaf3', 0, A.leafY * 0.5, A.leafZ * 0.55 + sw * 1.3);
     },
   };
   return api;

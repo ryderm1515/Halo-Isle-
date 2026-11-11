@@ -67,8 +67,9 @@ export async function initLandmarks(G, loader, terrain) {
   // ---- observatory (north-east hill)
   { const O = SPOTS.observatory; put('observatory', O.x, O.z, face(O.x, O.z, 0, 0) + Math.PI, 1, O.h); addCircle(O.x, O.z, 7); }
   // ---- puzzle ruins: sealed gate with glowing glyph, pedestal and three glyph blocks (east)
-  { const U = SPOTS.ruins, ry = face(U.x, U.z, U.x - 30, U.z + 20); put('ruins_gate', U.x, U.z, ry, 1, U.h); addBox(U.x, U.z, 5, 1.2, ry);
+  { const U = SPOTS.ruins, ry = face(U.x, U.z, U.x - 30, U.z + 20); put('ruins_gate', U.x, U.z, ry, 1, U.h);
     const f = new T.Vector3(Math.sin(ry), 0, Math.cos(ry)), s = new T.Vector3(f.z, 0, -f.x);
+    for (const e of [-1, 1]) addBox(U.x + s.x * e * 3.5, U.z + s.z * e * 3.5, 1.6, 1.0, ry); G.ruinDoor = addBox(U.x, U.z, 2.0, 0.6, ry);
     put('glyph_pedestal', U.x + f.x * 7 + s.x * 3.6, U.z + f.z * 7 + s.z * 3.6, ry + Math.PI, 1); for (let i = -1; i <= 1; i++) put('glyph_block', U.x + f.x * 5.2 + s.x * (-3 + i * 1.3), U.z + f.z * 5.2 + s.z * (-3 + i * 1.3), ry, 1); }
   // ---- a smaller ruin at the edge of the plaza, like the key art (hint that the island is older than the resort)
   { const P = SPOTS.plaza, x = P.x - 39, z = P.z + 6, ry = face(x, z, P.x, P.z); put('ruins_gate', x, z, ry, 0.62, P.h - 0.1); addBox(x, z, 3.2, 0.9, ry); put('glyph_pedestal', x + 4.6, z + 3.4, ry + Math.PI + 0.3, 1, P.h); }
