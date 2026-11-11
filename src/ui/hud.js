@@ -1,7 +1,8 @@
 import './hud.css';
-import { heightAt } from '../world/terrain.js';
+import { paintMap } from './mapart.js';
+import { iconImage, markerIcon, COLORS } from './icons.js';
 export const el = (cls, html = '', tag = 'div') => { const e = document.createElement(tag); e.className = cls; e.innerHTML = html; return e; };
-export function createHud() {
+export function createHud(G) {
   const root = document.getElementById('hud');
   const tl = el('tl'), coins = el('pill glass', '<span class="ico coin"></span><b>0</b>'), stars = el('pill glass', '<span class="ico star">★</span><b>0</b>'), shards = el('shards glass', '<i></i><i></i><i></i><i></i><i></i>'); tl.append(coins, stars, shards);
   const map = el('map glass', '<span class="n">N</span><canvas width="264" height="264"></canvas>'), clock = el('clock glass', '<span>Afternoon</span>'), prompt = el('prompt glass hide'), area = el('area', '<h1></h1><hr><p></p>'), toasts = el('toasts'), dialog = el('dialog glass hide'), act = el('act glass hide', '<div class="nm"></div><div class="tm"></div><div class="sc"></div>'),
@@ -9,10 +10,7 @@ export function createHud() {
     keys = el('keys', '<span><span class="key">Tab</span>Journal</span><span><span class="key">M</span>Map</span><span><span class="key">Esc</span>Menu</span>'),
     help = el('help glass hide', '<span><span class="key">W A S D</span> move &nbsp; <span class="key">Space</span> jump, again in the air, three in a row for a flip &nbsp; <span class="key">Shift</span> sprint &nbsp; <span class="key">C</span> slide / dive<br><span class="key">Click</span> capture the mouse to look &nbsp; <span class="key">E</span> interact &nbsp; <span class="key">X</span> sit &nbsp; <span class="key">1-9</span> emotes &nbsp; <span class="key">Caps</span> stroll</span>');
   root.append(wps, tl, map, clock, area, toasts, act, prompt, dialog, result, journal, keys, help, fade);
-  const MS = 264, WORLD = 760, base = document.createElement('canvas'); base.width = base.height = MS * 2;
-  { const N = MS * 2, g = base.getContext('2d'), im = g.createImageData(N, N); for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = (i / N - 0.5) * WORLD, z = (j / N - 0.5) * WORLD, h = heightAt(x, z), k = (j * N + i) * 4; let c;
-      if (h < -3) c = [40, 150, 235]; else if (h < 0) c = [90, 205, 240]; else if (h < 2.6) c = [250, 232, 170]; else if (h < 34) c = [110, 205, 80]; else if (h < 64) c = [86, 180, 70]; else if (h < 110) c = [150, 170, 110]; else c = [205, 190, 150];
-      const sh = Math.max(-18, Math.min(18, (heightAt(x - 3, z - 3) - h) * 6)); im.data[k] = c[0] - sh; im.data[k + 1] = c[1] - sh; im.data[k + 2] = c[2] - sh; im.data[k + 3] = 255; } g.putImageData(im, 0, 0); }
+  const MS = 264, WORLD = 760, base = paintMap(1024, WORLD, G.terrain);
   const mctx = map.querySelector('canvas').getContext('2d'); let markers = [];
   let areaT = 0, promptKey = '';
   const api = {
@@ -39,8 +37,8 @@ export function createHud() {
     fadeTo(v, color = '#fff') { fade.style.background = color; fade.style.opacity = v; },
     update(x, z, yaw) {
       const zoom = 2.1; mctx.save(); mctx.clearRect(0, 0, MS, MS); mctx.translate(MS / 2, MS / 2); mctx.scale(zoom, zoom); mctx.translate(-(x / WORLD + 0.5) * MS, -(z / WORLD + 0.5) * MS); mctx.drawImage(base, 0, 0, MS, MS);
-      for (const m of markers) { if (m.hidden) continue; const px = (m.x / WORLD + 0.5) * MS, pz = (m.z / WORLD + 0.5) * MS; mctx.beginPath(); if (m.shape === 'sq') mctx.rect(px - 3, pz - 3, 6, 6); else if (m.shape === 'tri') { mctx.moveTo(px, pz - 4.5); mctx.lineTo(px + 4, pz + 3); mctx.lineTo(px - 4, pz + 3); mctx.closePath(); } else mctx.arc(px, pz, m.r || 3.2, 0, 7); mctx.fillStyle = m.color || '#fff'; mctx.fill(); mctx.lineWidth = 1.1; mctx.strokeStyle = '#fff'; mctx.stroke(); }
-      mctx.restore(); mctx.save(); mctx.translate(MS / 2, MS / 2); mctx.rotate(Math.PI - yaw); mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7.5, 8); mctx.lineTo(0, 4.5); mctx.lineTo(-7.5, 8); mctx.closePath(); mctx.fillStyle = '#3fb2fb'; mctx.fill(); mctx.lineWidth = 2.5; mctx.strokeStyle = '#fff'; mctx.stroke(); mctx.restore();
+      for (const m of markers) { if (m.hidden) continue; const px = (m.x / WORLD + 0.5) * MS, pz = (m.z / WORLD + 0.5) * MS, isl = m.kind === 'islander', r = isl ? 3.6 : 6.2; if (Math.hypot(m.x - x, m.z - z) > 75) continue; const im = iconImage(markerIcon(m), isl ? undefined : m.tint); if (im.complete) mctx.drawImage(im, px - r, pz - r, r * 2, r * 2); }
+      mctx.restore(); mctx.save(); mctx.translate(MS / 2, MS / 2); mctx.rotate(Math.PI - (api.camYaw ?? yaw + Math.PI) + Math.PI); { const gr = mctx.createRadialGradient(0, 0, 4, 0, 0, 62); gr.addColorStop(0, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); mctx.fillStyle = gr; mctx.beginPath(); mctx.moveTo(0, 0); mctx.arc(0, 0, 62, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55); mctx.closePath(); mctx.fill(); } mctx.restore(); mctx.save(); mctx.translate(MS / 2, MS / 2); mctx.rotate(Math.PI - yaw); mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7.5, 8); mctx.lineTo(0, 4.5); mctx.lineTo(-7.5, 8); mctx.closePath(); mctx.fillStyle = '#3fb2fb'; mctx.fill(); mctx.lineWidth = 2.5; mctx.strokeStyle = '#fff'; mctx.stroke(); mctx.restore();
     },
   };
   dialog.addEventListener('click', () => api.advance?.());

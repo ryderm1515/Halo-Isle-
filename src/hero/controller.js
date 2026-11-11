@@ -67,7 +67,7 @@ export function createController(hero, camera) {
         const s2 = Math.hypot(vel.x, vel.z); if (s2 > 22) { vel.x *= 22 / s2; vel.z *= 22 / s2; } if (s2 > 1) yaw = Math.atan2(vel.x, vel.z);
         if (s2 < 1.3 && slope < 0.25) state.sliding = false;
       } else {
-        const top = (input.walk ? WALK : input.sprint ? SPRINT : JOG) * (swim || state.swim ? (input.sprint ? 0.5 : 0.62) : water > 0.15 ? 0.78 : 1) * (state.gliding ? 1.2 : 1);
+        const top = (api.speedMul || 1) * (input.walk ? WALK : input.sprint ? SPRINT : JOG) * (swim || state.swim ? (input.sprint ? 0.5 : 0.62) : water > 0.15 ? 0.78 : 1) * (state.gliding ? 1.2 : 1);
         const tvx = wx * top, tvz = wz * top;
         // inertia: quick to get going, a skid when you let go or reverse at speed
         const against = sp > 5.5 && wl > 0.1 && (vel.x * wx + vel.z * wz) / (sp * wl) < -0.35, coast = wl < 0.05;
@@ -83,7 +83,7 @@ export function createController(hero, camera) {
       if (buffer > 0 && !api.locked && !sit) {
         if (coyote > 0) {
           if (state.sliding) { const k = Math.min(15.5, Math.max(sp * 1.2, 10)) / Math.max(sp, 0.01); vel.x *= k; vel.z *= k; vel.y = 7.6; chain = 0; emit('jump', false, 'long'); }
-          else { chain = sinceLand < 0.3 && sp > 4 && chain < 2 ? chain + 1 : 0; vel.y = swim ? JUMPS[0] * 0.72 : JUMPS[chain]; if (chain === 2) flipT = 0.001; emit('jump', false, chain); }
+          else { chain = sinceLand < 0.3 && sp > 4 && chain < 2 ? chain + 1 : 0; vel.y = (swim ? JUMPS[0] * 0.72 : JUMPS[chain]) * (api.jumpMul || 1); if (chain === 2) flipT = 0.001; emit('jump', false, chain); }
           grounded = false; coyote = 0; buffer = 0; state.justJumped = true; airJumps = 1; state.sliding = false;
         } else if (airJumps > 0 && !swim) { vel.y = Math.max(vel.y, JUMPS[0] * 0.74); airJumps = 0; buffer = 0; state.justJumped = true; emit('jump', true); }
         else if (api.onAirPress && !swim && !api.flight && !grounded) { buffer = 0; api.onAirPress(); }

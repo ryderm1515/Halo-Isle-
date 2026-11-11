@@ -26,12 +26,12 @@ export async function initLife(G, loader) {
   // ---- wandering brains
   const tmp = new T.Vector3();
   for (const n of G.npcs) { n.ai = { state: 'idle', t: R() * 4, tx: n.x, tz: n.z, react: 0 }; if (n.wander == null) n.wander = n.name === 'Mayor Dew' ? 0 : 4.5; }
-  const react = (em, radius = 7) => { for (const n of G.npcs) if (Math.hypot(n.x - ctl.pos.x, n.z - ctl.pos.z) < radius && !n.talking) { n.h.emote(em); n.ai.react = 1.5; } };
+  const react = (em, radius = 7) => { for (const n of G.npcs) if (n.ai && Math.hypot(n.x - ctl.pos.x, n.z - ctl.pos.z) < radius && !n.talking) { n.h.emote(em); n.ai.react = 1.5; } };
   let lastEm = null; on('land', (v) => { if (v > 13) react('surprised', 6); }); on('star', () => react('celebrate', 12));
   G.systems.push((dt) => {
     const hp = ctl.pos; const em = hero.emoting; if (em && em !== lastEm) { const back = { wave: 'wave', celebrate: 'celebrate', happy: 'happy', love: 'love', laugh: 'laugh', sad: 'sad', confused: 'think', think: 'think', determined: 'surprised' }[em]; if (back) setTimeout(() => react(back, 6), 350); } lastEm = em;
-    if (ctl.state.sliding && ctl.state.speed > 9) for (const n of G.npcs) if (!n.ai.react && Math.hypot(n.x - hp.x, n.z - hp.z) < 3.2) { n.h.emote('surprised'); n.ai.react = 2; }
-    for (const n of G.npcs) { const a = n.ai, dx = hp.x - n.x, dz = hp.z - n.z, d = Math.hypot(dx, dz); if (d > 90) continue; a.react = Math.max(0, a.react - dt);
+    if (ctl.state.sliding && ctl.state.speed > 9) for (const n of G.npcs) if (n.ai && !n.ai.react && Math.hypot(n.x - hp.x, n.z - hp.z) < 3.2) { n.h.emote('surprised'); n.ai.react = 2; }
+    for (const n of G.npcs) { if (!n.ai) continue; const a = n.ai, dx = hp.x - n.x, dz = hp.z - n.z, d = Math.hypot(dx, dz); if (d > 90) continue; a.react = Math.max(0, a.react - dt);
       const near = d < 3.4 || n.talking; let sp = 0;
       if (near) { let dy = Math.atan2(dx, dz) - n.h.group.rotation.y; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; n.h.group.rotation.y += dy * Math.min(1, dt * 6); if (performance.now() / 1000 - (n.waved || 0) > 25 && !n.talking) { n.h.emote('wave'); n.waved = performance.now() / 1000; } }
       else if (a.state === 'idle') { a.t -= dt; if (a.t < 0 && n.wander > 0) { const an = R() * 6.283, rr = R() * n.wander; a.tx = n.home.x + Math.cos(an) * rr; a.tz = n.home.z + Math.sin(an) * rr; if (heightAt(a.tx, a.tz) > 0.6) a.state = 'walk'; a.t = 7; } else if (a.t < 0) { a.t = 4 + R() * 6; if (R() < 0.4) n.h.emote(['think', 'happy', 'wave'][(R() * 3) | 0]); } }

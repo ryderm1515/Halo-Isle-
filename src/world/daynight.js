@@ -49,5 +49,7 @@ export async function initDayNight(G) {
     if (U.shP.value >= 0) { U.shP.value += dt / 0.9; if (U.shP.value > 1) U.shP.value = -1; }
     else if (night > 0.8) { shootT -= dt; if (shootT < 0) { shootT = 3 + Math.random() * 7; const a = Math.random() * 6.283, e = 0.5 + Math.random() * 0.7, a2 = a + (Math.random() - 0.5) * 0.9, e2 = e - 0.25 - Math.random() * 0.2; U.shA.value.set(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)); U.shB.value.set(Math.cos(a2) * Math.cos(e2), Math.sin(e2), Math.sin(a2) * Math.cos(e2)); U.shP.value = 0; } }
     if (G.ambientDay) G.ambientDay(1 - night);
+    // indoors the sun is shut out: soft, even room light with no bloom wash and no depth blur
+    state.in = (state.in || 0) + ((G.indoors ? 1 : 0) - (state.in || 0)) * Math.min(1, dt * 6); if (state.in > 0.01) { const k = state.in; sun.intensity *= 1 - k; hemi.intensity = lerp(hemi.intensity, 0.42, k); hemi.color.lerp(skyDay, k); scene.environmentIntensity = lerp(scene.environmentIntensity, 0.28, k); G.renderer.toneMappingExposure = lerp(G.renderer.toneMappingExposure, 0.92, k); if (G.look) { G.look.bloom.strength = lerp(G.look.bloom.strength, 0.1, k); G.look.grade.warm.value = lerp(G.look.grade.warm.value, 0.2, k); G.look.grade.glow.value = lerp(0.1, 0.02, k); G.look.dof.amount.value = 1 - k; } } else if (G.look && G.look.dof.amount.value !== 1) { G.look.dof.amount.value = 1; G.look.grade.glow.value = 0.1; }
   });
 }

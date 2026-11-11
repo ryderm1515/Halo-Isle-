@@ -57,7 +57,7 @@ export async function createHero(loader, opts = {}) {
 
   const A = { t: 0, phase: 0, move: 0, run: 0, sprint: 0, air: 0, sq: 0, sqV: 0, leafY: 0, leafYV: 0, leafZ: 0, leafZV: 0, lookY: 0, lookX: 0, lookTY: 0, lookTX: 0, lookT: 2, tilt: 0, tiltT: 0,
     blinkT: 2.5, blink: 0, idle: 0, emote: null, emoteT: 0, expr: 'neutral', sit: 0, sleep: 0, wob: 0, wobV: 0, roll: 0, land: 0, acc: 0, lastSp: 0, spinT: 0, slide: 0, skid: 0, glide: 0, swim: 0, hang: 0, drive: 0, fidT: 4, whole: 0, shift: Math.random() * 9 };
-  const EM = { wave: 2.2, celebrate: 1.9, surprised: 0.9, confused: 2.2, happy: 1.6, love: 2.2, laugh: 1.8, sad: 2.2, think: 2.6, determined: 1.6, stretch: 2.4, hop: 0.9 };
+  const EM = { wave: 2.2, celebrate: 1.9, surprised: 0.9, confused: 2.2, happy: 1.6, love: 2.2, laugh: 1.8, sad: 2.2, think: 2.6, determined: 1.6, stretch: 2.4, hop: 0.9, swing: 1.0 };
   const P = {}; const CH = ['hx', 'hy', 'hz', 'hpx', 'hpy', 'cx', 'cy', 'cz', 'nx', 'ny', 'nz', 'aLx', 'aLz', 'aRx', 'aRz', 'eLx', 'eLz', 'eRx', 'eRz', 'fLx', 'fLy', 'fLz', 'fLr', 'fRx', 'fRy', 'fRz', 'fRr'];
   const to = (o, k) => { if (k < 0.002) return; for (const c in o) P[c] += (o[c] - P[c]) * k; }, add = (o, k) => { for (const c in o) P[c] += o[c] * k; };
   const api = {
@@ -153,6 +153,7 @@ export async function createHero(loader, opts = {}) {
       else if (em === 'love') { to({ nz: 0.18, aLx: -1.0, aRx: -1.0, aLz: 0.15, aRz: 0.15, eLx: -1.0, eRx: -1.0, hz: Math.sin(et * 4) * 0.05 }, k); expr = 'heart'; }
       else if (em === 'sad') { to({ nx: 0.45, cx: 0.2, hx: 0.05, aLz: -0.05, aRz: -0.05, eLx: -0.15, eRx: -0.15 }, k); expr = 'sad'; }
       else if (em === 'determined') { to({ cx: 0.1, aLz: 0.55, aRz: 0.55, aLx: -0.7, aRx: -0.7, eLx: -1.3, eRx: -1.3, nx: -0.05 }, k); expr = 'angry'; }
+      else if (em === 'swing') { const u = clamp(et / 0.9, 0, 1), a = u < 0.3 ? lerp(0, 1.25, sm(0, 0.3, u)) : lerp(1.25, -2.3, sm(0.3, 0.52, u)); to({ aLx: a, aRx: a, aLz: 0.3, aRz: 0.3, eLx: -0.2, eRx: -0.2, cy: a * 0.4, hy: a * 0.15, nx: 0.12, ny: -a * 0.35, cx: 0.12 }, Math.min(1, et / 0.08) * sm(1.0, 0.8, et)); expr = 'angry'; }
       else if (em === 'stretch') { const s2 = Math.sin(Math.min(1, et / EM.stretch) * Math.PI); to({ aLz: 2.3, aRz: 2.3, eLz: 0.3, eRz: 0.3, cx: -0.18 * s2, nx: -0.25 * s2, cz: Math.sin(et * 2.6) * 0.12, hpy: 0.02 * s2 }, k); expr = 'happy'; }
       add({ nx: A.lookX + A.sleep * 0.42, ny: A.lookY, nz: A.tilt }, 1);
       if (s.sliding || s.gliding || s.hang) expr = 'happy'; if (s.excited && !em) expr = 'star';
