@@ -30,6 +30,7 @@ const water = buildWater(terrain.depthTex, terrain.depthSize); scene.add(water.m
 
 const grass = buildGrass(terrain.depthTex, terrain.depthSize); scene.add(grass.mesh);
 const loader = new GLTFLoader();
+if (window.__GLB) { const orig = loader.loadAsync.bind(loader); loader.loadAsync = (url) => { const b = window.__GLB[url.replace('./assets/', '')]; if (!b) return orig(url); return loader.parseAsync(Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer, ''); }; }   // hosted build: models ship inside a script
 const G = (window.game = { scene, camera, renderer, T, look: post, heightAt, SPOTS, ready: false, frames: 0, systems: [] });
 const hero = await createHero(loader); scene.add(hero.group);
 const ctl = createController(hero, camera); bindPointer(canvas);
