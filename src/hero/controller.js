@@ -96,7 +96,7 @@ export function createController(hero, camera) {
       if (carry) { carryT += dt; const dx = carry.land[0] - pos.x, dz = carry.land[1] - pos.z, d = Math.hypot(dx, dz); if (grounded || carryT > 4 || d < 0.8 || wl > 0.5 && carryT > 0.6) carry = null; else { const k = Math.min(9, d * 3) / Math.max(d, 0.01); vel.x = damp(vel.x, dx * k, 6, dt); vel.z = damp(vel.z, dz * k, 6, dt); vel.y = Math.max(vel.y, d > 2 ? 1.5 : -3); state.lift = true; } }
       if (sit) { pos.set(sit.x, sit.y, sit.z); yaw = sit.ry; vel.set(0, 0, 0); grounded = true; }
       else { pos.x += vel.x * dt; pos.z += vel.z * dt; pos.y += vel.y * dt; resolve(pos, R); }
-      const lim = 400; pos.x = clamp(pos.x, -lim, lim); pos.z = clamp(pos.z, -lim, lim);
+      const lim = 400; if (api.floor == null) { pos.x = clamp(pos.x, -lim, lim); pos.z = clamp(pos.z, -lim, lim); }
       let g = api.floor != null ? api.floor : groundAt(pos.x, pos.z, pos.y); state.swim = false; state.under = false;
       if (api.floor == null) { let surf = null; if (g < -0.62) surf = -0.62; for (const w of api.waters) if (Math.hypot((pos.x - w.x) / w.sx, pos.z - w.z) < w.r + 1 && g < w.level - 0.62) surf = w.level - 0.62;
         if (surf != null) { const tgt = input.slide && !api.locked ? Math.max(g + 0.35, surf - 4.2) : surf; api.swimY = damp(api.swimY ?? surf, tgt, 3.2, dt); state.under = api.swimY < surf - 0.45; g = api.swimY; state.swim = pos.y <= g + 0.12; state.surf = surf + 0.62; } else api.swimY = null; }
