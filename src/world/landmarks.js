@@ -8,7 +8,7 @@ import { rng } from '../util/noise.js';
 
 export async function initLandmarks(G, loader, terrain) {
   await loadModels(loader, { lighthouse: 'landmarks', turbine_tower: 'landmarks', turbine_rotor: 'landmarks', observatory: 'landmarks', sailboat: 'landmarks', ruins_gate: 'structures', glyph_block: 'props', glyph_pedestal: 'props',
-    umbrella_orange: 'props', umbrella_blue: 'props', lounger: 'props', beach_ball: 'props', pier_section: 'structures', fence: 'props', surf_rack: 'props', cooler: 'props', sandcastle: 'props', life_ring_post: 'props', volleyball_net: 'props' });
+    umbrella_orange: 'props', umbrella_blue: 'props', lounger: 'props', beach_ball: 'props', pier: 'structures', fence: 'props', surf_rack: 'props', cooler: 'props', sandcastle: 'props', life_ring_post: 'props', volleyball_net: 'props' });
   const root = G.world, R = rng(777);
   const put = (name, x, z, rotY = 0, s = 1, y = null) => { const m = models[name]; if (!m) return null; const o = m.clone(); o.position.set(x, y ?? heightAt(x, z), z); o.rotation.y = rotY; o.scale.setScalar(s); root.add(o); return o; };
   const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
@@ -86,8 +86,8 @@ export async function initLandmarks(G, loader, terrain) {
   { const px = B.x + 22, pz = B.z + 14.5, ry = Math.PI / 2 + 0.12, n = 5, d = new T.Vector3(Math.sin(ry + Math.PI / 2), 0, Math.cos(ry + Math.PI / 2));
     for (let i = 0; i < n; i++) { const x = px - d.x * i * 8 * -1 * 0 + Math.sin(ry - Math.PI / 2) * 0 + Math.cos(ry) * 0, z = pz; }
     const dirx = Math.sin(0.12), dirz = Math.cos(0.12);   // pier runs roughly south
-    for (let i = 0; i < n; i++) { const x = px + dirx * (4 + i * 8), z = pz + dirz * (4 + i * 8); put('pier_section', x, z, Math.PI / 2 - 0.12 + Math.PI, 1, 0.95); }
-    addPlatform({ x: px + dirx * (n * 4), z: pz + dirz * (n * 4), hw: 1.5, hd: n * 4, rotY: 0.12, y: 1.0 }); G.pier = { x: px + dirx * n * 8, z: pz + dirz * n * 8 }; }
+    put('pier', px, pz, 0.12 - Math.PI / 2, 1, 1.0);
+    addPlatform({ x: px + dirx * 20, z: pz + dirz * 20, hw: 1.6, hd: 20.2, rotY: 0.12, y: 1.0 }); addPlatform({ x: px + dirx * 44.5, z: pz + dirz * 44.5, hw: 4.5, hd: 4.5, rotY: 0.12, y: 1.0 }); G.pier = { x: px + dirx * 44, z: pz + dirz * 44 }; }
   for (let i = 0; i < 9; i++) { const x = B.x - 30 + i * 2.4, z = 203 + i * 1.6; if (bh(x, z) > 2.2) put('fence', x, z, -0.58, 1); }
   // sailboats bobbing offshore
   const boats = []; for (const [x, z, ry] of [[10, 300, 1], [150, 290, -0.6], [-120, 280, 2.2], [260, 160, 0.3], [-330, -60, 4]]) { const o = put('sailboat', x, z, ry, 1.6, 0.2); boats.push(o); }

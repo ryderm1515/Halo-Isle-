@@ -188,7 +188,28 @@ for v in body.data.vertices:
     # arms never pull on the far side of the torso
     for n, sx in (('L', 1), ('R', -1)):
         for b_ in ('arm' + n, 'hand' + n):
-            if b_ in d: d[b_] *= sm(-.02, .1, v.co.x * sx)
+            if b_ in d: d[b_] *= sm(-.02, .1, v.co.x * sx) * sm(-.004, .034, math.hypot(v.co.x, v.co.y) - bodyR(v.co.z)) * sm(.62, .56, v.co.z)   # arms move the arms only: the torso and head keep their shape
+    setw(v, d)
+# soften the arm/torso seam so raised arms bend cleanly, then make the head and soles rigid again
+for o in C.scene.objects: o.select_set(o is body)
+nb = [[] for _ in body.data.vertices]
+for e in body.data.edges: a, b = e.vertices; nb[a].append(b); nb[b].append(a)
+Wt = [{body.vertex_groups[g.group].name: g.weight for g in v.groups} for v in body.data.vertices]
+for _ in range(4):
+    W2 = []
+    for i, d in enumerate(Wt):
+        acc = dict(d)
+        for j in nb[i]:
+            for n, w in Wt[j].items(): acc[n] = acc.get(n, 0) + w / max(1, len(nb[i]))
+        W2.append({n: w / 2 for n, w in acc.items()})
+    Wt = W2
+for v in body.data.vertices: setw(v, Wt[v.index])
+for v in body.data.vertices:
+    d = {body.vertex_groups[g.group].name: g.weight for g in v.groups}; z = v.co.z; k = sm(.6, .68, z); kf = sm(.06, .02, z)
+    if k <= 0 and kf <= 0: continue
+    for n in d: d[n] *= (1 - k) * (1 - kf)
+    if k > 0: d['head'] = d.get('head', 0) + k
+    if kf > 0: fn = 'footL' if v.co.x > 0 else 'footR'; d[fn] = d.get(fn, 0) + kf
     setw(v, d)
 # add leaf bones now (kept out of the bone-heat solve)
 C.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')

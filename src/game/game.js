@@ -122,7 +122,7 @@ export async function initGame(G, loader) {
   // ------------------------------------------------------------------ areas you discover
   const areas = [['Town Plaza', 'Heart of Halo Isle', P.x, P.z, 46], ['Resort Beach', 'Sun, sand and bubbles', 66, 224, 34], ['Halo Falls', 'Where the lake comes down', 41, 62, 16], ['Mirror Lake', 'Still water on the highlands', PONDS[0].x, PONDS[0].z, 30], ['Old Ruins', 'Older than the town', SPOTS.ruins.x, SPOTS.ruins.z, 24],
     ['Lighthouse Cape', 'The western edge', L.x, L.z, 42], ['Wind Ridge', 'Where the breeze never stops', SPOTS.windRidge.x, SPOTS.windRidge.z, 46], ['Stargazer Hill', 'Home of the observatory', SPOTS.observatory.x, SPOTS.observatory.z, 28], ['Halo Peak', 'Under the ring of light', PEAK.x, PEAK.z, 30]];
-  let curArea = null; G.areaTotal = areas.length;
+  let curArea = null; G.areaTotal = areas.length; G.areas = areas;
   // ------------------------------------------------------------------ journal (Tab): progress, activities, tints
   function toggleJournal() { if (hud.journalOpen) { hud.journal(null); ctl.locked = hud.dialogOpen; return; } if (G.uiBusy?.()) return; G.freeCursor?.(); audio.ui(); ctl.locked = true;
     const med = (id) => MED[S.medals[id] || 0] || '—';
@@ -139,7 +139,7 @@ export async function initGame(G, loader) {
     A.cur?.update(dt);
     // nearest interactable
     let best = null, bd = 1e9; if (!hud.dialogOpen && !hud.journalOpen) for (const th of things) { const d = Math.hypot(hp.x - th.x, hp.z - th.z); if (d < th.r && d < bd && Math.abs((th.y ?? hp.y) - hp.y) < 3) { best = th; bd = d; } }
-    if (G.ride) hud.prompt('E', G.ride.label); else if (best && !G.busy) hud.prompt('E', typeof best.label === 'function' ? best.label() : best.label); else hud.prompt(null);
+    hud.root.classList.toggle('riding', !!G.ride); if (G.ride) hud.prompt('E', G.ride.label); else if (best && !G.busy) hud.prompt('E', typeof best.label === 'function' ? best.label() : best.label); else hud.prompt(null);
     if (input.interact && G.ride && !hud.dialogOpen) G.ride.exit(); else if (!hud.dialogOpen && input.interact && best && !G.busy) best.act();
     input.interact = false; G.nearThing = best;
     { let ln = null, ld = 5.5; for (const n of npcs) { const d = Math.hypot(n.x - hp.x, n.z - hp.z); if (d < ld) { ld = d; ln = n; } } if (ln) { let a = Math.atan2(ln.x - hp.x, ln.z - hp.z) - ctl.yaw; while (a > Math.PI) a -= 6.283; while (a < -Math.PI) a += 6.283; ctl.state.lookYaw = Math.abs(a) < 1.5 ? a : null; } else ctl.state.lookYaw = null; }

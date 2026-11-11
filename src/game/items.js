@@ -58,7 +58,7 @@ export async function initItems(G, loader) {
   for (let i = 0, n = 0; i < 3000 && n < 26; i++) { const x = (R() - 0.5) * 520, z = (R() - 0.5) * 480 + 40, h = heightAt(x, z); if (h < 3.2 || h > 90 || grassAt(x, z, h) < 0.7 || Math.hypot(x - P.x, z - P.z) < P.r + 4) continue; n++; place('flower', 'flower', x, z, 1.5); }
   // ------------------------------------------------ first-person chats: the camera steps into your eyes and you look at who you are talking to
   let fp = null; const eye = new T.Vector3(), tgt = new T.Vector3(), from = new T.Vector3();
-  G.fpTalk = (n, onn) => { if (onn) { fp = { n, k: 0, out: false }; ctl.yaw = Math.atan2(n.x - ctl.pos.x, n.z - ctl.pos.z); hud.chrome(false); slot.classList.add('hide'); } else if (fp) fp.out = true; };
+  G.fpTalk = () => {}; const _fpOff = (n, onn) => { if (onn) { fp = { n, k: 0, out: false }; ctl.yaw = Math.atan2(n.x - ctl.pos.x, n.z - ctl.pos.z); hud.chrome(false); slot.classList.add('hide'); } else if (fp) fp.out = true; };
   // ------------------------------------------------ stalls: buy from the keeper, sell your finds to Sandy
   const SHOPS = { fruit: { title: "Papaya's Fruit", sells: [['mango', 6], ['coconut', 8], ['seeds', 3]] }, beach: { title: "Sandy's Beach Trade", sells: [['lantern', 40], ['seeds', 3]], buys: true } };
   const shop = el('shop glass hide', ''); hud.root.append(shop); let shopOpen = null;
