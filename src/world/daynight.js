@@ -33,7 +33,7 @@ export async function initDayNight(G) {
     G.lightDir.copy(night > 0.5 ? moonDir : dirDay); const cross = Math.abs(night - 0.5) * 2;   // dip to nothing while the key light swaps
     sun.color.copy(sunDay).lerp(sunDusk, dusk).lerp(moonCol, night); sun.intensity = lerp(3.9, 2.3, dusk) * (1 - night) * (night < 0.5 ? cross : 0) + (night >= 0.5 ? 1.25 * cross : 0) + 0.05;
     hemi.color.copy(skyDay).lerp(skyNight, night); hemi.groundColor.copy(gDay).lerp(gNight, night); hemi.intensity = lerp(0.72, 0.5, night);
-    scene.fog.color.copy(dayFog).lerp(duskFog, dusk * 0.8).lerp(nightFog, night); scene.environmentIntensity = lerp(base.env, 0.07, night);
+    scene.fog?.color.copy(dayFog).lerp(duskFog, dusk * 0.8).lerp(nightFog, night); scene.environmentIntensity = lerp(base.env, 0.07, night);
     U.night.value = night; U.dusk.value = dusk; U.moon.value.copy(moonDir); NIGHT.value = night; GLUM.value.set(lerp(1, 0.2, night) + dusk * 0.05, lerp(1, 0.3, night), lerp(1, 0.52, night) - dusk * 0.1);
     skyApi.cloudMat.emissiveIntensity = lerp(0.6, 0.07, night); skyApi.cloudMat.emissive.setRGB(lerp(0.95, 0.35, night) + dusk * 0.3, lerp(0.96, 0.45, night) - dusk * 0.15, lerp(1, 0.85, night) - dusk * 0.3);
     G.renderer.toneMappingExposure = lerp(base.exposure, 0.95, night);

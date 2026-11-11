@@ -77,20 +77,6 @@ def bodyR(z):
 def seg_d(p, a, bb):
     ab = bb - a; t = max(0, min(1, (p - a).dot(ab) / ab.length_squared)); return (p - (a + ab * t)).length
 
-G = {n: body.vertex_groups.new(name=n) for n in ('body', 'head', 'armL', 'armR', 'footL', 'footR')}
-for v in body.data.vertices:
-    p = v.co / s
-    wh = sm(.545, .6, p.z)
-    side = 'L' if p.x > 0 else 'R'; sx = 1 if p.x > 0 else -1
-    d = seg_d(p, Vector((SH.x * sx, SH.y, SH.z)), Vector((HAND.x * sx, HAND.y, HAND.z)))
-    outside = math.hypot(p.x, p.y) - bodyR(p.z)
-    wa = sm(-.012, .04, outside) * sm(.19, .11, d) * (1 - wh) * sm(.12, .19, p.z)
-    wf = sm(.2, .11, p.z) * (1 - wa)
-    wb = max(0, 1 - wh - wa - wf)
-    tot = wh + wa + wf + wb
-    for n, w in (('head', wh), ('arm' + side, wa), ('foot' + side, wf), ('body', wb)):
-        if w > 1e-4: G[n].add([v.index], w / tot, 'REPLACE')
-
 # ---------------- leaf: thick stem curving into a plump, glossy almond blade with a centre crease.
 # Points to the character's left and a little back, rising ~18 deg; the top face leans toward the front so you read it from the front.
 Hd = Vector((math.cos(math.radians(14)), math.sin(math.radians(14)), 0)); EL = math.radians(15)
@@ -155,28 +141,66 @@ for name, sx, M in (('EyeL', 1, EYEL), ('EyeR', -1, EYER)):
     for p in me.polygons: p.use_smooth = True
     me.materials.append(M); e.vertex_groups.new(name='head').add([v.index for v in me.vertices], 1, 'REPLACE'); eyes.append(e)
 
-for o in C.scene.objects: o.select_set(o in [body, leaf] + eyes)
-C.view_layer.objects.active = body; bpy.ops.object.join(); hero = body; hero.name = 'Hero'
-# normals for the fused surface come from smooth shading; eyes inherit the head curvature
 
-# ---------------- rig
+# ---------------- rig v3: hips + chest spine, two-bone arms, feet on the root (so the jelly stretches into legs), leaf chain.
 arm = bpy.data.armatures.new('HeroRig'); rig = bpy.data.objects.new('HeroRig', arm); C.collection.objects.link(rig)
 C.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
-def bone(n, h, t, parent=None):
-    eb = arm.edit_bones.new(n); eb.head = h; eb.tail = t
+def bone(n, h, t, parent=None, deform=True):
+    eb = arm.edit_bones.new(n); eb.head = h; eb.tail = t; eb.use_deform = deform
     if parent: eb.parent = arm.edit_bones[parent]
     return eb
-bone('root', (0, 0, 0), (0, 0, .08))
-bone('body', (0, 0, .08), (0, 0, .5), 'root')
-bone('head', (0, 0, .575), (0, 0, .95), 'body')
+bone('root', (0, 0, 0), (0, 0, .08), None, False)
+bone('hips', (0, 0, .13), (0, 0, .31), 'root')
+bone('chest', (0, 0, .31), (0, 0, .57), 'hips')
+bone('head', (0, 0, .59), (0, 0, .97), 'chest')
+ELB = SH.lerp(HAND, .5)
 for n, sx in (('L', 1), ('R', -1)):
-    bone('arm' + n, (SH.x * sx, 0, SH.z + .012), (HAND.x * sx, HAND.y, HAND.z), 'body')
-    bone('foot' + n, (.142 * sx, 0, .14), (.142 * sx, -.17, .03), 'root')
+    bone('arm' + n, ((SH.x + .035) * sx, 0, SH.z - .02), (ELB.x * sx, 0, ELB.z), 'chest')
+    bone('hand' + n, (ELB.x * sx, 0, ELB.z), (HAND.x * sx * .97, 0, HAND.z + .03), 'arm' + n)
+    bone('foot' + n, (.142 * sx, .03, .1), (.142 * sx, -.15, .06), 'root')
+bpy.ops.object.mode_set(mode='OBJECT')
+# bone-heat weights on the fused body only
+for o in C.scene.objects: o.select_set(False)
+body.select_set(True); rig.select_set(True); C.view_layer.objects.active = rig
+bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+names = [g.name for g in body.vertex_groups]; print('groups', names)
+assert 'armL' in names and len(body.data.vertices[0].groups) > 0, 'bone heat failed'
+# tidy: the head is rigid above the neck (the eye decals ride it), feet rigid at the sole, smooth everything once
+gi = {g.name: g.index for g in body.vertex_groups}
+def setw(v, d):
+    if sum(d.values()) < 1e-3: d = {'chest': 1.0} if v.co.z > .3 else {'hips': 1.0}
+    tot = sum(d.values())
+    for n, g in gi.items():
+        w = d.get(n, 0) / tot
+        if w > 1e-4: body.vertex_groups[n].add([v.index], w, 'REPLACE')
+        else: body.vertex_groups[n].remove([v.index])
+for v in body.data.vertices:
+    d = {body.vertex_groups[g.group].name: g.weight for g in v.groups}
+    z = v.co.z; k = sm(.6, .68, z)
+    if k > 0:
+        for n in d: d[n] *= (1 - k)
+        d['head'] = d.get('head', 0) + k
+    kf = sm(.06, .02, z)
+    if kf > 0:
+        fn = 'footL' if v.co.x > 0 else 'footR'
+        for n in d: d[n] *= (1 - kf)
+        d[fn] = d.get(fn, 0) + kf
+    # arms never pull on the far side of the torso
+    for n, sx in (('L', 1), ('R', -1)):
+        for b_ in ('arm' + n, 'hand' + n):
+            if b_ in d: d[b_] *= sm(-.02, .1, v.co.x * sx)
+    setw(v, d)
+# add leaf bones now (kept out of the bone-heat solve)
+C.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
 bone('leaf1', (0, 0, .99), tuple(leaf_curve(.04)), 'head')
 bone('leaf2', tuple(leaf_curve(.04)), tuple(leaf_curve(.55)), 'leaf1')
 bone('leaf3', tuple(leaf_curve(.55)), tuple(leaf_curve(1)), 'leaf2')
 bpy.ops.object.mode_set(mode='OBJECT')
-hero.parent = rig; md = hero.modifiers.new('Armature', 'ARMATURE'); md.object = rig
+for o in C.scene.objects: o.select_set(o in [body, leaf] + eyes)
+C.view_layer.objects.active = body; bpy.ops.object.join(); hero = body; hero.name = 'Hero'
+if not any(m.type == 'ARMATURE' for m in hero.modifiers):
+    md = hero.modifiers.new('Armature', 'ARMATURE'); md.object = rig
+hero.parent = rig
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'hero.blend'))
 export_glb(os.path.join(out, 'hero.glb'), [rig, hero], anim=False)
-print('hero v2 tris', sum(len(p.vertices) - 2 for p in hero.data.polygons))
+print('hero v3 tris', sum(len(p.vertices) - 2 for p in hero.data.polygons))
