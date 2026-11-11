@@ -111,7 +111,7 @@ def planter(name, r):
     return finish(name, p, P)
 
 def leafy_puff(c, r, seed, dark, light):
-    o = ico(r, c, 'M_Vcol', 4, (1, 1, .82))
+    o = ico(r, c, 'M_Vcol', 3, (1, 1, .82))
     for v in o.data.vertices:
         n = noise.noise(v.co * (2.2 / r) + Vector((seed, 0, 0))); n2 = noise.noise(v.co * (7 / r) + Vector((0, seed, 0))); v.co *= 1 + n * .22 + n2 * .09
     apply(o); return o

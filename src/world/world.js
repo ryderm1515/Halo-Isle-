@@ -37,13 +37,26 @@ export async function initWorld(G, loader) {
     const n = b.big ? 16 : 7; for (let i = 0; i < n; i++) { const a = R() * 6.3, r = (0.5 + R() * 0.5) * b.r; const o = put(R() < 0.45 ? 'hibiscus' : ['daisy_white', 'daisy_yellow', 'daisy_pink'][(R() * 3) | 0], b.x + Math.cos(a) * r, b.z + Math.sin(a) * r, R() * 6.3, R() < 0.45 ? 1.3 + R() * 0.6 : 2.2 + R(), H + 0.5); }
   }
   { const [x, z] = pol(106 * D, 30); put('signpost', x, z, 0.4, 1, H); addCircle(x, z, 0.22); const [x2, z2] = pol(64 * D, 28); put('notice_board', x2, z2, face(x2, z2, P.x, P.z), 1, H); addBox(x2, z2, 1.0, 0.2, face(x2, z2, P.x, P.z)); }
-  // ---- palms + trees + bushes + rocks around the rim and out into the meadow
-  let k = 0;
-  for (let i = 0; i < 260 && k < 120; i++) {
-    const a = R() * 6.3, r = P.r + 2 + R() * 70, x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r, h = heightAt(x, z), g = grassAt(x, z, h);
-    if (g < 0.5 && !(h > 1.4 && h < 3.2)) continue; k++;
-    const t = R(); let n, s, rad;
-    if (h < 4.2 || t < 0.34) { n = R() < 0.5 ? 'palm_a' : 'palm_b'; s = 1 + R() * 0.5; rad = 0.3; } else if (t < 0.55) { n = R() < 0.5 ? 'tree_a' : 'tree_b'; s = 0.9 + R() * 0.5; rad = 0.34; } else if (t < 0.9) { n = R() < 0.5 ? 'bush_a' : 'bush_b'; s = 0.7 + R() * 0.7; rad = 0; } else { n = ['rock_a', 'rock_b', 'rock_c'][(R() * 3) | 0]; s = 0.6 + R() * 0.9; rad = 0; }
-    put(n, x, z, R() * 6.3, s, h - 0.05); if (rad) addCircle(x, z, rad * s);
+  // ---- island-wide foliage: instanced and chunked so only what is near/in view costs anything
+  const want = { palm: [], tree: [], bush: [], rock: [] }, far = (x, z, p, r) => Math.hypot(x - p.x, z - p.z) > r;
+  for (let i = 0; i < 9000; i++) {
+    const x = (R() - 0.5) * 680, z = (R() - 0.5) * 660, h = heightAt(x, z); if (h < 1.5 || h > 112) continue;
+    if (!far(x, z, P, P.r + 2.5) || !far(x, z, SPOTS.lighthouse, 9) || !far(x, z, SPOTS.observatory, 13) || !far(x, z, SPOTS.ruins, 11) || !far(x, z, { x: 66, z: 221 }, 46) || !far(x, z, SPOTS.windRidge, 5)) continue;
+    const g = grassAt(x, z, h), nearTown = Math.hypot(x - P.x, z - P.z) < 120, coastal = h < 4.6, t = R();
+    if (coastal && h > 1.9) { if (t < 0.5 && want.palm.length < 230) want.palm.push([x, z, h, 0.95 + R() * 0.5]); else if (t > 0.93 && want.rock.length < 150) want.rock.push([x, z, h, 0.5 + R() * 1.2]); continue; }
+    if (g < 0.55) { if (t < 0.08 && h > 3 && want.rock.length < 150) want.rock.push([x, z, h, 0.6 + R() * 1.6]); continue; }
+    if (t < (nearTown ? 0.16 : 0.05) && want.palm.length < 230) want.palm.push([x, z, h, 1 + R() * 0.45]);
+    else if (t < (h > 30 ? 0.5 : 0.3) && want.tree.length < 420) want.tree.push([x, z, h, 0.85 + R() * 0.7]);
+    else if (t < 0.62 && want.bush.length < 480) want.bush.push([x, z, h, 0.6 + R() * 0.9]);
+    else if (t > 0.975 && want.rock.length < 150) want.rock.push([x, z, h, 0.5 + R() * 1.1]);
+  }
+  const variants = { palm: ['palm_a', 'palm_b', 'palm_c'], tree: ['tree_a', 'tree_b'], bush: ['bush_a', 'bush_b'], rock: ['rock_a', 'rock_b', 'rock_c'] }, CELL = 110, dummy = new T.Object3D();
+  for (const kind in want) {
+    const buckets = {};
+    for (const it of want[kind]) { const name = variants[kind][(R() * variants[kind].length) | 0], key = name + '|' + Math.floor(it[0] / CELL) + '|' + Math.floor(it[1] / CELL); (buckets[key] ||= { name, items: [] }).items.push(it); if (kind === 'palm' || kind === 'tree') addCircle(it[0], it[1], 0.3 * it[3]); else if (kind === 'rock' && it[3] > 1.1) addCircle(it[0], it[1], 0.75 * it[3], it[2] + 1.2 * it[3]); }
+    for (const key in buckets) { const { name, items } = buckets[key], m = models[name]; if (!m) continue; m.updateMatrixWorld(true);
+      m.traverse((o) => { if (!o.isMesh) return; const im = new T.InstancedMesh(o.geometry, o.material, items.length); im.castShadow = kind !== 'rock' || true; im.receiveShadow = o.receiveShadow;
+        items.forEach(([x, z, h, sc], i) => { dummy.position.set(x, h - 0.06, z); dummy.rotation.set(0, (x * 12.9898 + z * 78.233) % 6.283, 0); dummy.scale.setScalar(sc); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix.clone().multiply(o.matrixWorld)); });
+        im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); root.add(im); }); }
   }
 }

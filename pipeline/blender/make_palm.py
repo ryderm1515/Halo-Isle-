@@ -1,113 +1,49 @@
-"""Halo Isle stylized palm trees (asset library 'Foliage & Nature').
-Run: python make_palm.py <out_dir> -> palm.blend, palm_a.glb, palm_b.glb, palm.json (collision + metadata).
-Ringed, gently curved trunk; arched fronds with angled leaflets; coconut cluster. Vertex-coloured, two materials."""
-import sys, os, math, json, random
+"""Halo Isle palms v2, modelled on the key art: thick ringed trunk with a lazy curve, broad glossy fronds with split leaflets, coconuts.
+Run: python make_palm.py <public/assets dir>"""
+import sys, os, math, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import bpy, bmesh
-from mathutils import Vector, Matrix, Quaternion
-from common import reset, mat, srgb, hexc, export_glb
-out = sys.argv[-1] if len(sys.argv) > 1 and not sys.argv[-1].endswith('.py') else '.'
-reset(); C = bpy.context
-def vc_mat(name, rough, cc=0.0, sheen=0.0):
-    m = mat(name, (1, 1, 1), rough=rough, clearcoat=cc)
-    n = m.node_tree.nodes.new('ShaderNodeVertexColor'); n.layer_name = 'Col'
-    m.node_tree.links.new(n.outputs['Color'], m.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
-    return m
-BARK, FROND = vc_mat('Palm_Bark', 0.85), vc_mat('Palm_Frond', 0.55, cc=0.15)
-FROND.use_backface_culling = False
+import bpy
+from mathutils import Vector, Matrix, noise
+from kit import *
+OUT = os.path.join(sys.argv[-1], 'environment', 'foliage'); reset(); pi = math.pi
 
-def build(name, seed, H, lean, nfr):
-    rnd = random.Random(seed)
-    bm = bmesh.new(); col = bm.loops.layers.color.new('Col'); uvl = bm.loops.layers.uv.new('UVMap')
-    fcol = {}  # face -> colour fn
-    def ring_pts(c, fwd, r, n=12):
-        up = Vector((0, 0, 1)); side = fwd.cross(up if abs(fwd.z) < .99 else Vector((1, 0, 0))).normalized(); up2 = side.cross(fwd).normalized()
-        return [c + (side * math.cos(a) + up2 * math.sin(a)) * r for a in (2 * math.pi * k / n for k in range(n))]
-    def curve(t):  # trunk spine: lean out then curve back up
-        return Vector((lean * (1.6 * t - .6 * t * t), 0, H * t))
-    segs = 13; mats = {}
-    bark_a, bark_b, bark_top = Vector(hexc('#c9a274')), Vector(hexc('#b08a5e')), Vector(hexc('#d8b98a'))
-    for s in range(segs):
-        t0, t1 = s / segs, (s + 1) / segs
-        p0, p1 = curve(t0), curve(t1); fwd = (p1 - p0).normalized()
-        r0 = .3 * (1 - .5 * t0) + .05 + .12 * max(0, .12 - t0); r1 = .3 * (1 - .5 * t1) + .05 + .12 * max(0, .12 - t1)
-        A = [bm.verts.new(v) for v in ring_pts(p0, fwd, r0 * .93)]
-        Bm = [bm.verts.new(v) for v in ring_pts(p0.lerp(p1, .82), fwd, r1 * 1.1)]
-        Bt = [bm.verts.new(v) for v in ring_pts(p1, fwd, r1 * .93)]
-        cc = bark_a.lerp(bark_top, t0 * .6) if s % 2 == 0 else bark_b.lerp(bark_top, t0 * .5)
-        for ra, rb, shade in ((A, Bm, 1.0), (Bm, Bt, .86)):
-            for k in range(12):
-                f = bm.faces.new((ra[k], ra[(k + 1) % 12], rb[(k + 1) % 12], rb[k])); f.material_index = 0; f.smooth = True
-                for i, lp in enumerate(f.loops):
-                    lp[col] = (*(cc * shade), 1); lp[uvl].uv = ((k + (i in (1, 2))) / 12, t0 + (i >= 2) / segs)
-    top = curve(1); topdir = (curve(1) - curve(.95)).normalized()
-    # crown bulb
-    cb = bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=.24)
-    for v in cb['verts']: v.co = Vector((v.co.x, v.co.y, v.co.z * .8)) + top + Vector((0, 0, .05))
-    crown_faces = list({f for v in cb['verts'] for f in v.link_faces})
-    for f in crown_faces:
-        f.material_index = 0; f.smooth = True
-        for lp in f.loops: lp[col] = (*Vector(hexc('#7d9a3c')), 1)
-    # coconuts
-    for k in range(rnd.choice((3, 4))):
-        a = 2 * math.pi * k / 3.5 + rnd.random() * .4
-        c = top + Vector((math.cos(a) * .2, math.sin(a) * .2, -.16 - rnd.random() * .05))
-        cn = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=8, radius=.13)
-        tint = Vector(hexc('#8fae3c')).lerp(Vector(hexc('#a8783e')), rnd.random())
-        for v in cn['verts']: v.co = Vector((v.co.x, v.co.y, v.co.z * 1.08)) + c
-        for f in {f for v in cn['verts'] for f in v.link_faces}:
-            f.smooth = True
-            for lp in f.loops: lp[col] = (*tint, 1)
-    # fronds
-    g_dark, g_mid, g_light = Vector(hexc('#3c9e34')), Vector(hexc('#6ccf3c')), Vector(hexc('#b8ec62'))
-    for fi in range(nfr):
-        yaw = 2 * math.pi * fi / nfr + rnd.uniform(-.2, .2)
-        tier = fi % 2
-        Lf = rnd.uniform(2.3, 2.8) * (0.85 if tier else 1)
-        rise = rnd.uniform(.55, .95) * (1.3 if tier else 1); droop = rnd.uniform(1.3, 1.8)
-        d = Vector((math.cos(yaw), math.sin(yaw), 0))
-        side = Vector((-d.y, d.x, 0))
-        def rib(s):
-            return top + Vector((0, 0, .08)) + d * (s * Lf) + Vector((0, 0, rise * s - droop * s * s))
-        # midrib strip
-        N = 10
-        for i in range(N):
-            s0, s1 = i / N, (i + 1) / N
-            a0, a1 = rib(s0), rib(s1); w0, w1 = .035 * (1 - s0) + .008, .035 * (1 - s1) + .008
-            vs = [bm.verts.new(a0 - side * w0), bm.verts.new(a0 + side * w0), bm.verts.new(a1 + side * w1), bm.verts.new(a1 - side * w1)]
-            f = bm.faces.new(vs); f.material_index = 1
-            for lp in f.loops: lp[col] = (*Vector(hexc('#8fcf4a')), 1)
-        # leaflets
-        NL = 15
-        for li in range(NL):
-            s = .1 + .88 * li / NL
-            base = rib(s); tang = (rib(min(1, s + .02)) - rib(max(0, s - .02))).normalized()
-            ln = .7 * math.sin(math.pi * min(1, s * 1.05)) ** .6 + .08
-            for sg in (-1, 1):
-                out_dir = (side * sg * .8 + tang * .55 + Vector((0, 0, -.35))).normalized()
-                tip = base + out_dir * ln + Vector((0, 0, -.12 * ln))
-                mid = base.lerp(tip, .5) + Vector((0, 0, .04))
-                wv = tang * .13
-                v0, v1 = bm.verts.new(base - wv * .5), bm.verts.new(base + wv * .5)
-                v2, v3 = bm.verts.new(mid + wv * .5), bm.verts.new(mid - wv * .5)
-                v4 = bm.verts.new(tip)
-                f1 = bm.faces.new((v0, v1, v2, v3)); f2 = bm.faces.new((v3, v2, v4))
-                for f in (f1, f2):
-                    f.material_index = 1; f.smooth = True
-                    for lp in f.loops:
-                        u = (lp.vert.co - base).length / ln
-                        c = g_dark.lerp(g_mid, min(1, u * 1.4)).lerp(g_light, max(0, u - .55) * 1.6 * (.6 + .4 * s))
-                        lp[col] = (*c, 1)
-    bmesh.ops.recalc_face_normals(bm, faces=[f for f in bm.faces if f.material_index == 0])
-    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
-    me.materials.append(BARK); me.materials.append(FROND)
-    ob = bpy.data.objects.new(name, me); C.collection.objects.link(ob)
-    return ob, {'height': round(H + .3, 2), 'collider': {'type': 'capsule', 'radius': .26, 'height': H, 'offset': [0, 0, 0]}, 'tris': sum(len(p.vertices) - 2 for p in me.polygons)}
-os.makedirs(out, exist_ok=True); meta = {}
-a, meta['palm_a'] = build('Palm_A', 3, 5.6, .9, 9)
-b, meta['palm_b'] = build('Palm_B', 11, 4.4, 1.1, 8); b.location.x = 4
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'palm.blend'))
-b.location.x = 0
-export_glb(os.path.join(out, 'palm_a.glb'), [a]); export_glb(os.path.join(out, 'palm_b.glb'), [b])
-json.dump(meta, open(os.path.join(out, 'palm.json'), 'w'), indent=1)
-print('PALM_OK', meta)
+def palm(name, seed, H=6.4, lean=1.3, nf=12):
+    random.seed(seed); la = random.uniform(0, 2 * pi); lx, ly = math.cos(la) * lean, math.sin(la) * lean
+    def spine(t): return Vector((lx * t * t, ly * t * t, H * t - .25 * lean * t * t))
+    # trunk: stacked ring segments that bulge, like the art
+    bm = bmesh.new(); col = bm.loops.layers.color.new('Col'); NS, NR = 26, 16; rings = []; cols = []
+    c_lo, c_hi, c_ln = hexc('#b8894e'), hexc('#e2bb78'), hexc('#8a6234')
+    for i in range(NS * 4 + 1):
+        t = i / (NS * 4); p = spine(t); tg = (spine(min(1, t + .01)) - spine(max(0, t - .01))).normalized(); e1 = tg.cross(Vector((0, 1, 0))).normalized(); e2 = tg.cross(e1)
+        ph = (i % 4) / 4; r = (.3 - .12 * t + .1 * (1 - t) ** 6) * (1 + .1 * math.sin(ph * pi) ** .6 - (.07 if i % 4 == 0 else 0))
+        rings.append([bm.verts.new(p + (e1 * math.cos(a) + e2 * math.sin(a)) * r) for a in (2 * pi * k / NR for k in range(NR))]); cols.append(c_ln if i % 4 == 0 else lerp3(c_lo, c_hi, .3 + .7 * math.sin(ph * pi)))
+    for i, (a, b) in enumerate(zip(rings, rings[1:])):
+        for k in range(NR):
+            f = bm.faces.new((a[k], a[(k + 1) % NR], b[(k + 1) % NR], b[k]))
+            for lp, c in zip(f.loops, (cols[i], cols[i], cols[i + 1], cols[i + 1])): lp[col] = (*c, 1)
+    bm.faces.new(rings[-1]); trunk = obj('Trunk', bm, 'M_Vcol')
+    top = spine(1); parts = [trunk]
+    # crown: fronds arch out and droop; each is a folded blade whose edge is cut into leaflets
+    bm = bmesh.new(); col = bm.loops.layers.color.new('Col'); g_in, g_mid, g_tip = hexc('#2f9a26'), hexc('#6fd032'), hexc('#c4ee4a')
+    for k in range(nf):
+        az = 2 * pi * k / nf + random.uniform(-.2, .2); tier = k % 3; el = (.75, .28, -.18)[tier] + random.uniform(-.1, .1); L = (2.5, 3.1, 2.8)[tier] * random.uniform(.9, 1.1); W = .62 * random.uniform(.9, 1.1)
+        d = Vector((math.cos(az), math.sin(az), 0)); side = Vector((-d.y, d.x, 0)); NU = 16; rows = []
+        for i in range(NU + 1):
+            u = i / NU; ang = el - u * u * (1.5 + .3 * tier); 
+            # integrate the arc
+            if i == 0: c = top + Vector((0, 0, .05)); 
+            else: c = prev + (d * math.cos(pang) + Vector((0, 0, 1)) * math.sin(pang)) * (L / NU)
+            prev, pang = c, ang
+            w = W * (math.sin(pi * min(1, u * .9 + .1)) ** .55) * (1 - .35 * u); cut = (.55 if i % 2 else 1.0) if 1 < i < NU else 1.0     # zig-zag edge = leaflets
+            up = Vector((-d.x * math.sin(ang), -d.y * math.sin(ang), math.cos(ang))); fold = .42
+            rows.append([(c + side * (-w * cut) - up * (w * cut * fold), u, 1), (c + side * (-w * .5) - up * (w * .5 * fold * .8), u, .5), (c, u, 0), (c + side * (w * .5) - up * (w * .5 * fold * .8), u, .5), (c + side * (w * cut) - up * (w * cut * fold), u, 1)])
+        vr = [[(bm.verts.new(p), u, e) for p, u, e in row] for row in rows]
+        for a, b in zip(vr, vr[1:]):
+            for j in range(4):
+                f = bm.faces.new((a[j][0], a[j + 1][0], b[j + 1][0], b[j][0]))
+                for lp, (v, u, e) in zip(f.loops, (a[j], a[j + 1], b[j + 1], b[j])): c = lerp3(lerp3(g_in, g_mid, min(1, u * 2 + e * .4)), g_tip, max(0, u * 1.2 - .45) + e * .22); lp[col] = (*c, 1)
+    crown = obj('Crown', bm, 'M_Leaf'); sol = crown.modifiers.new('t', 'SOLIDIFY'); sol.thickness = .02; C.view_layer.objects.active = crown; bpy.ops.object.modifier_apply(modifier='t'); parts.append(crown)
+    for k in range(3): a = 2 * pi * k / 3 + seed; parts.append(sphere(.17, top + Vector((math.cos(a) * .22, math.sin(a) * .22, -.2)), 'M_Coconut', (1, 1, 1.12), 12, 8))
+    parts.append(sphere(.3, top + Vector((0, 0, -.02)), 'M_Coconut', (1, 1, .7), 12, 8))
+    return finish(name, parts, OUT)
+palm('palm_a', 3, 6.4, 1.3, 12); palm('palm_b', 11, 7.6, 2.0, 13); palm('palm_c', 5, 5.0, .6, 11)

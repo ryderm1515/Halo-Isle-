@@ -45,6 +45,16 @@ export async function initLandmarks(G, loader, terrain) {
     const fall = new T.Mesh(geo, mat); fall.renderOrder = 2; root.add(fall); G.fallMat = mat;
     { const P = SPOTS.plaza, cg = new T.CylinderGeometry(2.36, 2.44, 0.72, 48, 1, true); cg.translate(P.x, P.h + 0.9, P.z); const uvA = cg.attributes.uv; for (let i = 0; i < uvA.count; i++) uvA.setXY(i, uvA.getX(i) * 6, (1 - uvA.getY(i)) * 1.4); const m2 = mat.clone(); m2.uniforms = U2; const fc = new T.Mesh(cg, m2); fc.renderOrder = 2; root.add(fc); } G.systems.push((dt) => (U.t.value += dt)); G.fallsBase = { x: b.x - dir.x * 5, z: b.z - dir.y * 5, y: b.level };
   }
+  // ---- extra falls spilling off the plateau rims (found by marching outward until the land drops away)
+  const HX = -10, HZ = -60;
+  for (const [deg, r0, W] of [[38, 100, 6], [96, 100, 4.5], [118, 60, 5], [20, 58, 4], [150, 104, 4.5], [-20, 104, 5]]) {
+    const a = deg * Math.PI / 180, dx = Math.cos(a), dz = Math.sin(a); let rr = r0, hTop = heightAt(HX + dx * r0, HZ + dz * r0), found = 0;
+    for (; rr < r0 + 70; rr += 1.5) { const h = heightAt(HX + dx * rr, HZ + dz * rr); if (h < hTop - 14) { found = rr; break; } hTop = Math.max(hTop * 0.98 + h * 0.02, h > hTop ? h : hTop * 0.999); }
+    if (!found) continue; const pos = [], uv = [], idx = [], N = 30, s0 = found - 12, len = 20; let dist = 0, py = null, lowest = 1e9; const px = -dz, pz = dx;
+    for (let i = 0; i <= N; i++) { const sI = s0 + len * i / N, x = HX + dx * sI, z = HZ + dz * sI; let y = heightAt(x, z) + 0.3; if (py !== null) y = Math.min(y, py); if (py !== null) dist += Math.hypot(len / N, y - py); py = y; lowest = y; for (const e of [-1, 1]) { pos.push(x + px * e * W / 2 + dx * 0.5, y, z + pz * e * W / 2 + dz * 0.5); uv.push(e * 0.5 + 0.5, dist); } }
+    for (let i = 0; i < N; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); const f = new T.Mesh(geo, G.fallMat); f.renderOrder = 2; root.add(f);
+  }
   G.systems.push((dt, g) => { for (const w of waters) w.update(dt, g.camera.position); halo.rotation.y += dt * 0.05; const k = 1 + Math.sin(performance.now() * 0.0012) * 0.12; glowM.opacity = 0.2 * k; });
 
   // ---- lighthouse on the west cape
