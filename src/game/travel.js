@@ -6,52 +6,56 @@ import { groundAt, resolve, addCircle } from '../world/colliders.js';
 import { heightAt } from '../world/terrain.js';
 import { SPOTS, PEAK } from '../world/layout.js';
 import { models, loadModels } from '../world/world.js';
+import { waveAt } from '../world/water.js';
+import { initKit } from './kit.js';
 // Ways to get around: golf carts you can drive, hang gliders to launch from the high places, and diving under the sea for pearls.
 export async function initTravel(G, loader) {
   await loadModels(loader, { golf_cart: 'vehicles', glider: 'vehicles', jetski: 'vehicles' });
   const hud = G.hud, ctl = G.ctl, hero = G.hero, P = SPOTS.plaza, root = G.world;
   // ------------------------------------------------ rides: anything you sit on and steer. E gets on, E gets off.
+  const kit = initKit(G); let boost = 1;   // shared boost tank: Shift burns it, it refills when you ease off
+  const boosting = (dt, moving) => { const on = input.sprint && moving && boost > 0.02; boost = Math.min(1, Math.max(0, boost + dt * (on ? -0.36 : 0.16))); kit.meter(on ? 'Boost!' : 'Boost · hold Shift', boost, null, on ? 'linear-gradient(90deg,#ffd23f,#ff8a3a)' : ''); return on; };
   let ride = null, camKeep = 0; const seat = new T.Vector3(), wrap = (d) => { while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; return d; };
-  function mount(v) { if (ride || G.act.A.cur) return audio.bad(); ride = v; ctl.driving = true; ctl.state.driving = true; if (v.col) v.col.off = true; G.busy = true; G.ride = { label: v.exitLabel, exit: dismount }; camKeep = ctl.cam.tDist; ctl.cam.tDist = Math.max(camKeep, v.camDist); audio.good(); hud.toast(v.name, v.help); hero.emote('happy'); }
-  function dismount() { const v = ride; if (!v) return; input.interact = false; ride = null; G.ride = null; G.busy = false; ctl.driving = false; ctl.state.driving = false; ctl.state.steer = 0; ctl.cam.tDist = camKeep || 6.2; v.v = 0;
+  function mount(v) { if (ride || G.act.A.cur) return audio.bad(); ride = v; ctl.driving = true; ctl.state.driving = true; if (v.col) v.col.off = true; G.busy = true; G.ride = { label: v.exitLabel, exit: dismount, kind: v.kind, v }; camKeep = ctl.cam.tDist; ctl.cam.tDist = Math.max(camKeep, v.camDist); audio.good(); hud.toast(v.name, v.help); hero.emote('happy'); }
+  function dismount() { const v = ride; if (!v) return; input.interact = false; ride = null; G.ride = null; G.busy = false; ctl.driving = false; ctl.state.driving = false; ctl.state.steer = 0; ctl.cam.tDist = camKeep || 6.2; v.v = 0; ctl.rideSpeed = 0; kit.meter(null); audio.motor?.(0, 1);
     if (v.col) { v.col.off = false; v.col.x = v.x; v.col.z = v.z; v.col.top = v.y + 1.4; } v.thing.x = v.x; v.thing.z = v.z;
     const [sx, sz] = v.exitSpot(); seat.set(sx, v.y, sz); resolve(seat, 0.4); ctl.teleport(seat.x, seat.z); ctl.yaw = v.yaw; audio.ui(); }
   G.dismount = dismount;
   // ---- golf carts
   for (const [x, z, yaw] of [[P.x + 12, P.z + 38, 2.2], [P.x - 30, P.z - 22, 0.6], [58, 206, 1.0], [SPOTS.lighthouse.x + 14, SPOTS.lighthouse.z + 10, 1.5], [-96, 150, 1.2]]) {
     const o = models.golf_cart.clone(), g = new T.Group(); g.add(o); root.add(g);
-    const c = { kind: 'cart', name: 'Golf cart', help: 'W/S drive · A/D steer · Space honk · E hop out', exitLabel: 'Hop out', camDist: 7.5, g, o, x, z, y: groundAt(x, z), yaw, v: 0, bounce: 0, bv: 0, col: addCircle(x, z, 1.25, 1e9) };
+    const c = { kind: 'cart', name: 'Golf cart', help: 'W/S drive · A/D steer · Shift boost · Space honk · E hop out', exitLabel: 'Hop out', camDist: 7.5, g, o, x, z, y: groundAt(x, z), yaw, v: 0, bounce: 0, bv: 0, col: addCircle(x, z, 1.25, 1e9) };
     c.col.top = c.y + 1.4; g.position.set(x, c.y, z); g.rotation.y = yaw;
     c.exitSpot = () => [c.x + Math.cos(c.yaw) * 1.7, c.z - Math.sin(c.yaw) * 1.7];
     c.thing = G.thing({ x, z, r: 2.6, marker: '#ffffff', kind: 'cart', name: 'Golf cart', label: 'Drive the golf cart', act: () => mount(c) });
-    c.update = (dt) => { const thr = -input.mz, top = thr > 0 ? 13 : 5; c.v += (thr * top - c.v) * Math.min(1, dt * (Math.abs(thr) > 0.1 ? 1.6 : 2.4)); const st = input.mx * Math.min(1, Math.abs(c.v) / 3) * Math.sign(c.v || 1); c.yaw -= st * dt * 1.9; ctl.state.steer = input.mx;
+    c.update = (dt) => { const thr = -input.mz, bo = boosting(dt, thr > 0.1), top = thr > 0 ? (bo ? 25 : 13.5) : 5; c.v += (thr * top - c.v) * Math.min(1, dt * (bo ? 2.6 : Math.abs(thr) > 0.1 ? 1.6 : 2.4)); audio.motor?.(0.035 + Math.abs(c.v) * 0.004, 2.2 + Math.abs(c.v) * 0.09); if (bo && Math.random() < dt * 30) G.puff?.(c.x - Math.sin(c.yaw) * 1.3, c.y + 0.2, c.z - Math.cos(c.yaw) * 1.3, 1, '#fff2c4', 0.9, 0.5); const st = input.mx * Math.min(1, Math.abs(c.v) / 3) * Math.sign(c.v || 1); c.yaw -= st * dt * 1.9; ctl.state.steer = input.mx;
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); seat.set(c.x + fx * c.v * dt, c.y, c.z + fz * c.v * dt); resolve(seat, 1.1);
       if (heightAt(seat.x, seat.z) < 0.25 || Math.abs(groundAt(seat.x, seat.z, c.y + 1) - c.y) > 1.3) { if (Math.abs(c.v) > 4) { c.bv += 2; audio.bounce(); } c.v *= -0.25; } else { c.x = seat.x; c.z = seat.z; }
       const ny = groundAt(c.x, c.z, c.y + 1); c.bv += (ny - c.y) * 6; c.y = ny; c.bv += (-c.bounce * 160 - c.bv * 11) * dt; c.bounce += c.bv * dt;
       const e = 1.1, pitch = Math.atan2(groundAt(c.x + fx * e, c.z + fz * e, c.y + 1) - groundAt(c.x - fx * e, c.z - fz * e, c.y + 1), 2 * e), roll = Math.atan2(groundAt(c.x + fz * 0.7, c.z - fx * 0.7, c.y + 1) - groundAt(c.x - fz * 0.7, c.z + fx * 0.7, c.y + 1), 1.4);
       c.g.position.set(c.x, c.y, c.z); c.g.rotation.set(0, c.yaw, 0); c.o.rotation.set(-pitch + c.bounce * 0.3, 0, roll * 0.8 + st * Math.abs(c.v) * 0.012); c.o.position.y = Math.max(-0.05, c.bounce * 0.12);
       ctl.sitAt(c.x - Math.cos(c.yaw) * 0.3 - fx * 0.14, c.y + 0.84 + c.o.position.y, c.z + Math.sin(c.yaw) * 0.3 - fz * 0.14, c.yaw);
-      if (input.jump) { input.jump = false; audio.honk?.(); } if (Math.abs(c.v) > 6 && Math.random() < dt * 14) G.puff?.(c.x - fx * 1.2, c.y, c.z - fz * 1.2, 1, '#e6ddd0', 0.8, 0.6); return Math.abs(c.v); }; }
+      if (input.tap) { input.tap = false; audio.honk?.(); } if (Math.abs(c.v) > 6 && Math.random() < dt * 14) G.puff?.(c.x - fx * 1.2, c.y, c.z - fz * 1.2, 1, '#e6ddd0', 0.8, 0.6); return Math.abs(c.v); }; }
   // ---- jet skis: moored along the beach and the pier. They only run on water; run one up the sand and it just stops.
   const skis = []; let tw = 0;
   const waterSpot = (x, z) => { for (let k = 0; k < 40; k++) { if (heightAt(x, z) < -1.3) break; const d = Math.hypot(x, z) || 1; x += x / d * 1.5; z += z / d * 1.5; } return [x, z]; };
-  if (models.jetski) for (const [x0, z0, yaw] of [[30, 246, 2.6], [44, 252, 3.0], [96, 250, 3.4], [SPOTS.lighthouse.x - 20, SPOTS.lighthouse.z + 40, 4.2], [150, 214, 2.4]]) {
-    const [x, z] = waterSpot(x0, z0), o = models.jetski.clone(), g = new T.Group(); g.add(o); root.add(g);
-    const k = { kind: 'ski', name: 'Jet ski', help: 'W throttle · S reverse · A/D lean · Space hop · E hop off', exitLabel: 'Hop off', camDist: 8, g, o, x, z, y: -0.18, yaw, v: 0, lean: 0, hop: 0, hv: 0, ph: Math.random() * 6 };
+  if (models.jetski) for (let [x0, z0, yaw] of [[30, 246, 2.6], [44, 252, 3.0], [96, 250, 3.4], [SPOTS.lighthouse.x - 20, SPOTS.lighthouse.z + 40, 4.2], [150, 214, 2.4], [150, 326, 1.0], [-152, -206, 4.0]]) {
+    const [x, z] = waterSpot(x0, z0), o = models.jetski.clone(), g = new T.Group(); g.add(o); root.add(g); yaw = Math.atan2(x, z) + (yaw % 1 - 0.5) * 0.8;   // moored nose-out, ready to go
+    const k = { kind: 'ski', name: 'Jet ski', help: 'W throttle · S reverse · A/D lean · Shift boost · Space hop · E hop off', exitLabel: 'Hop off', camDist: 8, g, o, x, z, y: -0.18, yaw, v: 0, lean: 0, hop: 0, hv: 0, ph: Math.random() * 6 };
     k.exitSpot = () => [k.x + Math.cos(k.yaw) * 1.5, k.z - Math.sin(k.yaw) * 1.5];
     k.thing = G.thing({ x, z, r: 3.4, marker: '#59d7f5', kind: 'ski', name: 'Jet ski', label: 'Ride the jet ski', act: () => mount(k) });
-    k.update = (dt) => { const thr = -input.mz, top = thr > 0 ? 19 : 5; k.v += (thr * top - k.v) * Math.min(1, dt * (Math.abs(thr) > 0.1 ? 1.1 : 0.8)); const st = input.mx * Math.min(1, 0.25 + Math.abs(k.v) / 8); k.yaw -= st * dt * 1.7 * Math.sign(k.v || 1); k.lean += (st * Math.min(1, Math.abs(k.v) / 12) - k.lean) * Math.min(1, dt * 5); ctl.state.steer = input.mx;
+    k.update = (dt) => { const thr = -input.mz, bo = boosting(dt, thr > 0.1), top = thr > 0 ? (bo ? 33 : 19) : 5; k.v += (thr * top - k.v) * Math.min(1, dt * (bo ? 2.2 : Math.abs(thr) > 0.1 ? 1.1 : 0.8)); audio.motor?.(0.07 + Math.abs(k.v) * 0.0035 + (bo ? 0.03 : 0), 1.5 + Math.abs(k.v) * 0.075); if (bo && Math.random() < dt * 40) G.puff?.(k.x - Math.sin(k.yaw) * 1.6, 0.25, k.z - Math.cos(k.yaw) * 1.6, 2, '#ffffff', 2.2, 2.6); const st = input.mx * Math.min(1, 0.25 + Math.abs(k.v) / 8); k.yaw -= st * dt * 1.7 * Math.sign(k.v || 1); k.lean += (st * Math.min(1, Math.abs(k.v) / 12) - k.lean) * Math.min(1, dt * 5); ctl.state.steer = input.mx;
       const fx = Math.sin(k.yaw), fz = Math.cos(k.yaw), nx = k.x + fx * k.v * dt, nz = k.z + fz * k.v * dt; seat.set(nx, 0, nz); resolve(seat, 1.0);
       if (heightAt(seat.x, seat.z) > -0.55) { if (Math.abs(k.v) > 6) audio.splash?.(); k.v *= -0.2; } else { k.x = seat.x; k.z = seat.z; }
-      if (input.jump && k.hop <= 0.01) { k.hv = 4.2 + Math.abs(k.v) * 0.12; audio.jump(); } input.jump = false;
+      if (input.tap && k.hop <= 0.01) { k.hv = 4.2 + Math.abs(k.v) * 0.12; audio.jump(); } input.tap = false;
       k.hv -= 14 * dt; k.hop += k.hv * dt; if (k.hop < 0) { if (k.hv < -3) { audio.splash?.(); G.puff?.(k.x, 0, k.z, 14, '#ffffff', 2.4, 2.2); } k.hop = 0; k.hv = 0; }
       const sp = Math.abs(k.v); if (sp > 3 && k.hop < 0.05 && Math.random() < dt * (10 + sp * 2)) { G.puff?.(k.x - fx * 1.3 + fz * (Math.random() - 0.5), 0, k.z - fz * 1.3 - fx * (Math.random() - 0.5), 2, '#ffffff', 1.2 + sp * 0.08, 0.8 + sp * 0.09); }
       ctl.sitAt(k.x + fx * 0.05, k.g.position.y + 0.62, k.z + fz * 0.05, k.yaw); return sp; };
     skis.push(k); }
   G.systems.push((dt) => { tw += dt;
-    for (const k of skis) { if (Math.hypot(k.x - ctl.pos.x, k.z - ctl.pos.z) > 160) continue; const sp = Math.abs(k.v), bob = Math.sin(tw * 1.6 + k.ph) * 0.06 + Math.sin(tw * 2.7 + k.ph * 2) * 0.03; k.g.position.set(k.x, k.y + bob * (1 - Math.min(1, sp / 10) * 0.6) + k.hop + Math.min(0.14, sp * 0.008), k.z); k.g.rotation.set(0, k.yaw, 0);
+    for (const k of skis) { if (Math.hypot(k.x - ctl.pos.x, k.z - ctl.pos.z) > 160) continue; const sp = Math.abs(k.v), bob = Math.sin(tw * 1.6 + k.ph) * 0.06 + Math.sin(tw * 2.7 + k.ph * 2) * 0.03; k.g.position.set(k.x, k.y + 0.15 + waveAt(k.x, k.z) + bob * (1 - Math.min(1, sp / 10) * 0.6) + k.hop + Math.min(0.14, sp * 0.008), k.z); k.g.rotation.set(0, k.yaw, 0);
       k.o.rotation.set(-Math.min(0.2, sp * 0.011) - k.hv * 0.03 + Math.sin(tw * 1.9 + k.ph) * 0.03, 0, -k.lean * 0.5 + Math.sin(tw * 1.3 + k.ph) * 0.04); if (ride !== k) { k.v *= Math.exp(-dt * 1.2); k.thing.x = k.x; k.thing.z = k.z; } }
-    if (!ride) return; const sp = ride.update(dt); let d = wrap((ride.yaw + Math.PI) - ctl.cam.yaw); if (sp > 1) ctl.cam.yaw += d * Math.min(1, dt * 1.6); });
+    if (!ride) return; const sp = ride.update(dt); ctl.rideSpeed = sp; let d = wrap((ride.yaw + Math.PI) - ctl.cam.yaw); if (sp > 1) ctl.cam.yaw += d * Math.min(1, dt * 1.6); });
   // ------------------------------------------------ hang glider: pick one up once and it is yours. Press Space in mid-air (after your air hop) to open it.
   // W dives for speed, S pulls up and trades speed for height, A/D bank. Space folds it away; so does landing.
   const gl = models.glider.clone(), glPivot = new T.Group(); glPivot.add(gl); glPivot.visible = false; hero.group.add(glPivot); gl.position.set(0, -0.2, 0.42); let fv = 0, pitch = 0, roll = 0, head = 0, openK = 0, flying = false;

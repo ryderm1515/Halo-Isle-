@@ -24,11 +24,11 @@ export async function initLandmarks(G, loader, terrain) {
 
   // ---- lake + plunge pool + the waterfall between them
   const waters = [];
-  for (const K of PONDS) { const geo = new T.CircleGeometry(K.r + 6, 48).rotateX(-Math.PI / 2); geo.scale(K.sx, 1, 1); geo.translate(K.x, 0, K.z); const w = buildWater(terrain.depthTex, terrain.depthSize, geo, K.level); root.add(w.mesh); waters.push(w); }
+  for (const K of PONDS) { const geo = new T.CircleGeometry(K.r + 1.6, 48).rotateX(-Math.PI / 2); geo.scale(K.sx, 1, 1); geo.translate(K.x, 0, K.z); const w = buildWater(terrain.depthTex, terrain.depthSize, geo, K.level); root.add(w.mesh); waters.push(w); }
   { // ribbon that follows the cliff from the lake lip down into the pool
     const a = PONDS[0], b = PONDS[1], dir = new T.Vector2(b.x - a.x, b.z - a.z).normalize(), perp = new T.Vector2(-dir.y, dir.x), W = 5.2, N = 40, pos = [], uv = [], idx = [];
     const s0 = Math.hypot(SPOTS.falls.x - a.x, SPOTS.falls.z - a.z) - 9, len = 17; let dist = 0, prev = null;
-    for (let i = 0; i <= N; i++) { const s = s0 + len * i / N, x = a.x + dir.x * s, z = a.z + dir.y * s; let y = Math.min(a.level, heightAt(x, z) + 0.35); if (i === N) y = b.level; y = Math.max(y, b.level);
+    for (let i = 0; i <= N; i++) { const s = s0 + len * i / N, x = a.x + dir.x * s, z = a.z + dir.y * s; let y = s < a.r + 2.5 ? a.level + 0.03 : Math.min(a.level, heightAt(x, z) + 0.35); if (i === N) y = b.level; y = Math.max(y, b.level);
       if (prev) dist += Math.hypot(len / N, y - prev); prev = y;
       for (const e of [-1, 1]) { pos.push(x + perp.x * e * W / 2 + dir.x * 0.6, y, z + perp.y * e * W / 2 + dir.y * 0.6); uv.push(e * 0.5 + 0.5, dist); } }
     for (let i = 0; i < N; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
@@ -70,16 +70,16 @@ export async function initLandmarks(G, loader, terrain) {
   { const U = SPOTS.ruins, ry = face(U.x, U.z, U.x - 30, U.z + 20); put('ruins_gate', U.x, U.z, ry, 1, U.h);
     const f = new T.Vector3(Math.sin(ry), 0, Math.cos(ry)), s = new T.Vector3(f.z, 0, -f.x);
     for (const e of [-1, 1]) addBox(U.x + s.x * e * 3.5, U.z + s.z * e * 3.5, 1.6, 1.0, ry); G.ruinDoor = addBox(U.x, U.z, 2.0, 0.6, ry);
-    put('glyph_pedestal', U.x + f.x * 7 + s.x * 3.6, U.z + f.z * 7 + s.z * 3.6, ry + Math.PI, 1); for (let i = -1; i <= 1; i++) put('glyph_block', U.x + f.x * 5.2 + s.x * (-3 + i * 1.3), U.z + f.z * 5.2 + s.z * (-3 + i * 1.3), ry, 1); }
+    put('glyph_pedestal', U.x + f.x * 7 + s.x * 3.6, U.z + f.z * 7 + s.z * 3.6, ry + Math.PI, 1); }
   // ---- a smaller ruin at the edge of the plaza, like the key art (hint that the island is older than the resort)
-  { const P = SPOTS.plaza, x = P.x - 39, z = P.z + 6, ry = face(x, z, P.x, P.z); put('ruins_gate', x, z, ry, 0.62, P.h - 0.1); addBox(x, z, 3.2, 0.9, ry); put('glyph_pedestal', x + 4.6, z + 3.4, ry + Math.PI + 0.3, 1, P.h); }
+  { const P = SPOTS.plaza, x = P.x - 39, z = P.z + 6, ry = face(x, z, P.x, P.z); G.plazaArch = { x, z, ry, s: 0.62, y: P.h - 0.1, o: put('ruins_gate', x, z, ry, 0.62, P.h - 0.1) }; for (const e of [-1, 1]) addBox(x + Math.cos(ry) * e * 1.62, z - Math.sin(ry) * e * 1.62, 0.5, 0.5, ry); }
 
   // ---- resort beach (south cove)
   const B = SPOTS.beach = { x: 66, z: 221 };
   const bh = (x, z) => heightAt(x, z);
   for (const [dx, dz, kind] of [[-18, -2, 'umbrella_orange'], [-8, 1, 'umbrella_blue'], [4, 2, 'umbrella_orange'], [16, 4, 'umbrella_blue'], [30, 5, 'umbrella_orange']]) { const x = B.x + dx, z = B.z + dz; put(kind, x, z, R() * 6, 1); addCircle(x, z, 0.12);
     put('lounger', x - 1.2, z + 0.4, 3.3 + R() * 0.3, 1); put('lounger', x + 1.2, z + 0.5, 3.0 - R() * 0.3, 1); if (R() < 0.6) put('cooler', x + 0.1, z - 0.9, R() * 6, 1); }
-  G.balls = []; for (const [dx, dz] of [[-12, 6], [9, 8], [22, 9]]) { const x = B.x + dx, z = B.z + dz, o = put('beach_ball', x, z, R() * 6, 1); o.userData.ball = { v: new T.Vector3(), r: 0.42 }; G.balls.push(o); }
+  G.balls = [];
   put('sandcastle', B.x - 2, B.z + 7, 0.5, 1); put('sandcastle', B.x + 26, B.z + 11, 2, 0.8); put('surf_rack', B.x - 26, B.z - 6, 0.5, 1); put('life_ring_post', B.x + 36, B.z + 8, -0.6, 1);
   { const x = B.x - 34, z = B.z - 1, ry = 0.25; put('volleyball_net', x, z, ry, 1); G.volley = { x, z, ry }; }
   // pier out into the cove

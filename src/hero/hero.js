@@ -160,6 +160,7 @@ export async function createHero(loader, opts = {}) {
       else if (em === 'determined') { to({ cx: 0.1, aLz: 0.55, aRz: 0.55, aLx: -0.7, aRx: -0.7, eLx: -1.3, eRx: -1.3, nx: -0.05 }, k); expr = 'angry'; }
       else if (em === 'swing') { const u = clamp(et / 0.9, 0, 1), a = u < 0.3 ? lerp(0, 1.25, sm(0, 0.3, u)) : lerp(1.25, -2.3, sm(0.3, 0.52, u)); to({ aLx: a, aRx: a, aLz: 0.3, aRz: 0.3, eLx: -0.2, eRx: -0.2, cy: a * 0.4, hy: a * 0.15, nx: 0.12, ny: -a * 0.35, cx: 0.12 }, Math.min(1, et / 0.08) * sm(1.0, 0.8, et)); expr = 'angry'; }
       else if (em === 'stretch') { const s2 = Math.sin(Math.min(1, et / EM.stretch) * Math.PI); to({ aLz: 1.55, aRz: 1.55, aLx: -0.3, aRx: -0.3, eLz: 0.45, eRz: 0.45, cx: -0.18 * s2, nx: -0.25 * s2, cz: Math.sin(et * 2.6) * 0.12, hpy: 0.02 * s2 }, k); expr = 'happy'; }
+      if (api.pose) { to(api.pose, api.poseK ?? 1); if (api.poseExpr) expr = api.poseExpr; }   // activities can hold a pose (carrying, aiming, casting)
       add({ nx: A.lookX + A.sleep * 0.42, ny: A.lookY, nz: A.tilt }, 1);
       if (s.sliding || s.gliding || s.hang) expr = 'happy'; if (s.excited && !em) expr = 'star';
       if (A.sleep > 0.4) expr = 'sleepy'; else if (A.blink > 0 && (expr === 'neutral' || expr.startsWith('look'))) expr = 'blink';

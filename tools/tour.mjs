@@ -6,5 +6,5 @@ const p = await b.newPage({ viewport: { width: +(process.env.W || 800), height: 
 await p.goto('http://localhost:5173/?shot=1&' + Q); await p.waitForFunction('window.game && window.game.ready && window.game.frames > 3', null, { timeout: 600000 });
 let i = 0; for (const s of stops) { const [x, z, yaw, pitch, dist, ...js] = s.split(','); 
   await p.evaluate(`{const c=game.ctl; ${x === '_' ? '' : `c.teleport(${x},${z});`} c.cam.yaw=${yaw};c.cam.pitch=${pitch};c.cam.dist=c.cam.tDist=${dist};c.cam.pos.set(0,0,0);c.cam.look.set(0,0,0); ${js.join(',')}}`);
-  const f = await p.evaluate('game.frames'); await p.waitForFunction(`game.frames > ${f + +(process.env.N || 3)}`, null, { timeout: 300000 }); await p.screenshot({ path: `shots/${prefix}-${i++}.png` }); }
+  const f = await p.evaluate('game.frames'); await p.waitForFunction(`game.frames > ${f + +(process.env.N || 3)}`, null, { timeout: 300000 }); await p.screenshot({ path: `shots/${prefix}-${i++}.png`, timeout: 240000 }); }
 if (errs.size) console.log([...errs].slice(0, 6).join('\n')); await b.close();

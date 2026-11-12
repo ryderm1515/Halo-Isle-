@@ -10,7 +10,7 @@ export const SPOTS = {
   observatory: { x: 128, z: -128, r: 12, h: 25 },
   ruins: { x: 176, z: 20, r: 10, h: 7.8 },
   falls: { x: 37.5, z: 52.5 },                      // waterfall off the first plateau, behind the plaza
-  lake: { x: 34, z: 44, h: 0 },
+  lake: { x: 34, z: 35, h: 0 },
 };
 
 // Footpaths (x, z). Heights are taken from the land at each node, so paths roll with the terrain but stay smooth.
@@ -22,4 +22,9 @@ export const PATHS = [
 ];
 
 // Fresh-water bodies: the highland lake that feeds the falls, and the plunge pool below them.
-export const PONDS = [ { x: 34, z: 42, r: 21, depth: 5.5, level: 36.3, sx: 1.25 }, { x: 40.5, z: 60, r: 8.5, depth: 2.6, level: 5.9, sx: 1 } ];
+export const PONDS = [ { x: 34, z: 35, r: 14, depth: 4.5, level: 34.4, sx: 1.3, rim: 0.7, out: [0.2516, 0.9678] }, { x: 40.5, z: 60, r: 8.5, depth: 2.6, level: 5.9, sx: 1, rim: 0.35, out: [-0.31, 0.95] } ];
+// A stream runs from the plunge pool down to the west end of the beach.
+export const STREAM = [[40.5, 60], [37, 72], [28, 94], [15, 122], [7, 150], [4, 176], [9, 204]];
+export const CAY = { x: 176, z: 346, r: 24 };          // Coconut Cay, the islet off the south-east shore
+export const HARBOR = { x: -122, z: -168, h: 3.6, r: 24 };   // Driftwood Harbor on the north-west shore
+export const TERRACE = { x: 10, z: 0, h: 70.5, r: 15 };      // Cloudrest, the high terrace above town

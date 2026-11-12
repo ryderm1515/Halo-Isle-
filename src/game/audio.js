@@ -36,6 +36,13 @@ export const audio = {
   bad() { if (!ctx) return; const t = ctx.currentTime; tone(280, t, 0.18, 'triangle', 0.1, master, 0.75); tone(210, t + 0.12, 0.25, 'triangle', 0.1, master, 0.8); },
   fanfare() { if (!ctx) return; const t = ctx.currentTime; [0, 4, 7, 12, 7, 12, 16, 19].forEach((n, i) => tone(392 * Math.pow(2, n / 12), t + i * 0.11, 0.5, 'triangle', 0.15)); },
   bounce() { if (!ctx) return; tone(220, ctx.currentTime, 0.12, 'sine', 0.1, master, 1.5); },
+  // engine note for the carts and jet skis: a recorded purr, looped and pitched with the throttle, kept quiet
+  motor(v, rate) { if (!ctx || !buf.purr) return; if (!loops.motor) { const g = ctx.createGain(); g.gain.value = 0; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; const src = ctx.createBufferSource(); src.buffer = buf.purr; src.loop = true; src.connect(lp).connect(g).connect(master); src.start(); loops.motor = g; loops.motorSrc = src; } loops.motor.gain.setTargetAtTime(v, ctx.currentTime, 0.15); loops.motorSrc.playbackRate.setTargetAtTime(rate, ctx.currentTime, 0.2); },
+  drip() { if (!ctx) return; tone(1500 + Math.random() * 500, ctx.currentTime, 0.1, 'sine', 0.05, master, 0.55); },
+  crackle() { if (!ctx) return; tone(180 + Math.random() * 500, ctx.currentTime, 0.03, 'square', 0.018); },
+  thunk() { if (!ctx) return; tone(120, ctx.currentTime, 0.12, 'triangle', 0.16, master, 0.5); },
+  swish() { if (!ctx) return; tone(900, ctx.currentTime, 0.14, 'sine', 0.05, master, 0.3); },
+  roll(v) { if (!ctx) return; if (!beds.roll) beds.roll = noiseBed(260, 1.4, 0.0001, 13); beds.roll.gain.setTargetAtTime(v, ctx.currentTime, 0.1); },
   radioOn: false,
   radio(on) { audio.radioOn = on; if (!ctx) return; setLoop('radio', on ? 0.9 : 0, 0.2); if (on) setLoop('hawaiian_hotel', 0); },
   setMuffle(k) { if (lowpass) lowpass.frequency.setTargetAtTime(k > 0.8 ? 600 : k > 0.3 ? 2400 : 20000, ctx.currentTime, 0.15); },

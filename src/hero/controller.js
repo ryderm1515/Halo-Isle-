@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { groundAt, resolve } from '../world/colliders.js';
 import { heightAt } from '../world/terrain.js';
+import { waveAt } from '../world/water.js';
 import { clamp, damp } from '../util/noise.js';
 import { S, emit } from '../game/state.js';
 export const lifts = [];      // updraft columns: {x,z,r,top,base,land:[x,z]}
@@ -30,7 +31,7 @@ function poll() {
     const yb = gp.buttons[3]?.pressed; if (yb && !poll.y) input.emote = 'wave'; poll.y = yb;
     input.sprint = input.sprint || gp.buttons[7]?.pressed || gp.buttons[5]?.pressed; input.slide = input.slide || gp.buttons[1]?.pressed || gp.buttons[6]?.pressed;
   }
-  const l = Math.hypot(x, z); if (l > 1) { x /= l; z /= l; } input.mx = x; input.mz = z; input.any = l > 0.05 || input.jumpHeld;
+  const l = Math.hypot(x, z); if (l > 1) { x /= l; z /= l; } input.mx = x; input.mz = z; input.any = l > 0.05 || input.jumpHeld; if (input.test) Object.assign(input, input.test);
 }
 
 export function createController(hero, camera) {
@@ -53,7 +54,7 @@ export function createController(hero, camera) {
       state.sitting = !!sit;
       const f = api.locked || sit ? 0 : 1, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
       const wx = (input.mx * cy + input.mz * sy) * f, wz = (-input.mx * sy + input.mz * cy) * f, wl = Math.hypot(wx, wz);
-      let water = api.floor != null ? -5 : -heightAt(pos.x, pos.z), swim = water > 0.62 && pos.y <= 0.05; state.wading = clamp(water, 0, 1);
+      let water = api.floor != null ? -5 : -heightAt(pos.x, pos.z), swim = (water > 0.62 && pos.y <= 0.25) || state.swim; state.wading = clamp(water, 0, 1);
       let sp = Math.hypot(vel.x, vel.z);
       const [gx, gz] = grounded && api.floor == null ? grad(pos.x, pos.z, pos.y) : [0, 0], slope = Math.hypot(gx, gz);
       // ---- slide: hold C on the ground (or stand on something too steep) and gravity does the rest
@@ -78,7 +79,7 @@ export function createController(hero, camera) {
       }
       sp = Math.hypot(vel.x, vel.z);
       // ---- jumping: buffer + coyote, variable height, a triple-jump chain, a long jump out of a slide, one air hop
-      buffer = input.jump ? 0.13 : buffer - dt; input.jump = false; coyote = grounded ? 0.11 : coyote - dt;
+      input.tap = input.jump; buffer = input.jump ? 0.13 : buffer - dt; input.jump = false; coyote = grounded ? 0.11 : coyote - dt;
       if (buffer > 0 && api.flight && !grounded) { buffer = 0; emit('flightdrop'); }
       if (buffer > 0 && !api.locked && !sit) {
         if (coyote > 0) {
@@ -99,13 +100,13 @@ export function createController(hero, camera) {
       else { pos.x += vel.x * dt; pos.z += vel.z * dt; pos.y += vel.y * dt; resolve(pos, R); }
       const lim = 400; if (api.floor == null) { pos.x = clamp(pos.x, -lim, lim); pos.z = clamp(pos.z, -lim, lim); }
       let g = api.floor != null ? api.floor : groundAt(pos.x, pos.z, pos.y); state.swim = false; state.under = false;
-      if (api.floor == null) { let surf = null; if (g < -0.62) surf = -0.62; for (const w of api.waters) if (Math.hypot((pos.x - w.x) / w.sx, pos.z - w.z) < w.r + 1 && g < w.level - 0.62) surf = w.level - 0.62;
-        if (surf != null) { const tgt = input.slide && !api.locked ? Math.max(g + 0.35, surf - 4.2) : surf; api.swimY = damp(api.swimY ?? surf, tgt, 3.2, dt); state.under = api.swimY < surf - 0.45; g = api.swimY; state.swim = pos.y <= g + 0.12; state.surf = surf + 0.62; } else api.swimY = null; }
+      if (api.floor == null) { let surf = null; if (g < -0.62) surf = -0.47 + waveAt(pos.x, pos.z) + Math.sin(performance.now() * 0.0021) * 0.03; for (const w of api.waters) if (Math.hypot((pos.x - w.x) / w.sx, pos.z - w.z) < w.r + 1 && g < w.level - 0.62) surf = w.level - 0.62;
+        if (surf != null) { const tgt = input.slide && !api.locked && !input.jumpHeld ? Math.max(g + 0.35, surf - 4.2) : surf; api.swimY = damp(api.swimY ?? surf, tgt, input.jumpHeld ? 6 : 3.2, dt); state.under = api.swimY < surf - 0.45; g = api.swimY; state.swim = pos.y <= g + 0.12; state.surf = surf + 0.62; } else api.swimY = null; }
       // springy things
       if (!grounded && vel.y < -1) for (const b of bouncers) { if (pos.y <= b.y && pos.y > b.y - 0.9 && Math.hypot(pos.x - b.x, pos.z - b.z) < b.r) { vel.y = b.power || 13.5; airJumps = 1; pos.y = b.y; emit('bounce', b); break; } }
       if (sit) { /* held in place */ }
       else if (grounded) { if (g < pos.y - 0.55 && !state.swim) grounded = false; else { pos.y = g; vel.y = 0; } }
-      else if (pos.y <= g && vel.y <= 0) { state.landSpeed = -vel.y; pos.y = g; vel.y = 0; grounded = true; state.justLanded = true; airJumps = 0; sinceLand = 0; emit('land', state.landSpeed, water > 0.1 || state.swim); if (api.flight) emit('flightdrop'); }
+      else if (pos.y <= g && vel.y <= 0) { state.landSpeed = -vel.y; pos.y = g; vel.y = 0; grounded = true; state.justLanded = true; airJumps = 0; sinceLand = 0; if (state.swim && api.swimY != null && state.landSpeed > 5) { api.swimY -= Math.min(1.7, state.landSpeed * 0.085); pos.y = api.swimY; } emit('land', state.landSpeed, water > 0.1 || state.swim); if (api.flight) emit('flightdrop'); }
       // footsteps
       if (grounded && !sit) { stepDist += sp * dt; const stride = state.sliding ? 0.5 : sp > 8 ? 1.5 : 1.15; if (stepDist > stride && sp > 1.5) { stepDist = 0; emit('step', pos, sp, state.sliding || state.skid); } }
       state.speed = sp; state.vy = vel.y; state.grounded = grounded; state.turn = turn;
@@ -115,8 +116,8 @@ export function createController(hero, camera) {
       cam.yaw += input.lookX; cam.pitch = clamp(cam.pitch - input.lookY, -0.25, 1.25); input.lookX = input.lookY = 0;
       if (input.zoom) { cam.tDist = clamp(cam.tDist + input.zoom * 0.8, 3, 14); input.zoom = 0; }
       if (performance.now() - lastInput > 1600 && sp > 1.5 && (wl > 0.1 || state.sliding)) { let d = (yaw + Math.PI) - cam.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) < 2.6) cam.yaw += d * Math.min(1, dt * (state.sliding ? 2.2 : 0.9)); }
-      cam.dist = damp(cam.dist, (cam.maxDist ? Math.min(cam.tDist, cam.maxDist) : cam.tDist) + clamp((sp - 7) * 0.22, 0, 2.2), 5, dt);
-      camera.fov = damp(camera.fov, 52 + clamp((sp - 7) * 1.1, 0, 12), 4, dt); camera.updateProjectionMatrix();
+      const fsp = Math.max(sp, api.rideSpeed || 0); cam.dist = damp(cam.dist, (cam.maxDist ? Math.min(cam.tDist, cam.maxDist) : cam.tDist) + clamp((fsp - 7) * 0.22, 0, 3.4), 5, dt);
+      camera.fov = damp(camera.fov, 52 + clamp((fsp - 7) * 1.0, 0, 20), 4, dt); camera.updateProjectionMatrix();
       const tx = pos.x + vel.x * 0.12, tz = pos.z + vel.z * 0.12, ty = pos.y + (cam.lookH ?? 1.0);
       if (cam.look.lengthSq() === 0 || cam.pos.lengthSq() === 0) cam.look.set(tx, ty, tz);
       cam.look.x = damp(cam.look.x, tx, 12, dt); cam.look.z = damp(cam.look.z, tz, 12, dt); cam.look.y = damp(cam.look.y, ty, grounded ? 9 : 5, dt);

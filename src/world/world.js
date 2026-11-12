@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { SPOTS } from './layout.js';
+import { SPOTS, PONDS, HARBOR, TERRACE, CAY } from './layout.js';
 import { heightAt, grassAt } from './terrain.js';
 import { addCircle, addBox, addPlatform, groundAt } from './colliders.js';
 import { bouncers } from '../hero/controller.js';
@@ -45,12 +45,12 @@ export async function initWorld(G, loader) {
     for (let k = 0; k < 5; k++) { const [fx, fz] = pol((a + (R() - 0.5) * 9) * D, P.r + 0.8 + R() * 4.5); put(R() < 0.55 ? 'hibiscus' : ['daisy_white', 'daisy_yellow', 'daisy_pink'][(R() * 3) | 0], fx, fz, R() * 6.3, 1.2 + R() * 0.9, heightAt(fx, fz)); } }
   // ---- a second row of town behind the plaza and pastel houses up on the terraces
   for (const [n, a, r, w] of [['shop_yellow', -133, 58, 8], ['shop_white', -100, 60, 11], ['shop_pink', 166, 58, 9], ['shop_blue', 18, 60, 10], ['shop_pink', 52, 57, 9]]) { const [x, z] = pol(a * D, r), ry = face(x, z, P.x, P.z), h = heightAt(x, z); if (h < 3) continue; put(n, x, z, ry, 1, h - 0.3); addBox(x, z, w / 2 + 0.3, 3.9, ry); }
-  { const HX = -10, HZ = -60; let placed = 0; for (let deg = 20; deg < 160 && placed < 9; deg += 13) { const a = deg * D, r = 104 + R() * 10, x = HX + Math.cos(a) * r, z = HZ + Math.sin(a) * r, h = heightAt(x, z); if (h < 30 || h > 44 || grassAt(x, z, h) < 0.5) continue; const n = ['shop_pink', 'shop_yellow', 'shop_blue', 'shop_white'][placed % 4], ry = face(x, z, P.x, P.z); put(n, x, z, ry, 0.8, h - 0.3); addBox(x, z, 4.6, 3.3, ry); placed++; } }
+  { const HX = -10, HZ = -60; let placed = 0; for (let deg = 20; deg < 160 && placed < 9; deg += 13) { const a = deg * D, r = 104 + R() * 10, x = HX + Math.cos(a) * r, z = HZ + Math.sin(a) * r, h = heightAt(x, z); if (h < 30 || h > 44 || grassAt(x, z, h) < 0.5 || PONDS.some((K) => Math.hypot(x - K.x, z - K.z) < K.r * K.sx + 14)) continue; const n = ['shop_pink', 'shop_yellow', 'shop_blue', 'shop_white'][placed % 4], ry = face(x, z, P.x, P.z); put(n, x, z, ry, 0.8, h - 0.3); addBox(x, z, 4.6, 3.3, ry); placed++; } }
   // ---- island-wide foliage: instanced and chunked so only what is near/in view costs anything
   const want = { palm: [], tree: [], bush: [], rock: [] }, far = (x, z, p, r) => Math.hypot(x - p.x, z - p.z) > r;
   for (let i = 0; i < 9000; i++) {
     const x = (R() - 0.5) * 680, z = (R() - 0.5) * 660, h = heightAt(x, z); if (h < 1.5 || h > 112) continue;
-    if (!far(x, z, P, P.r + 2.5) || !far(x, z, SPOTS.lighthouse, 9) || !far(x, z, SPOTS.observatory, 13) || !far(x, z, SPOTS.ruins, 11) || !far(x, z, { x: 66, z: 221 }, 46) || !far(x, z, SPOTS.windRidge, 5)) continue;
+    if (!far(x, z, P, P.r + 2.5) || !far(x, z, SPOTS.lighthouse, 9) || !far(x, z, SPOTS.observatory, 13) || !far(x, z, SPOTS.ruins, 11) || !far(x, z, { x: 66, z: 221 }, 46) || !far(x, z, SPOTS.windRidge, 5) || !far(x, z, HARBOR, HARBOR.r + 2) || !far(x, z, TERRACE, TERRACE.r + 1) || PONDS.some((K) => Math.hypot((x - K.x) / K.sx, z - K.z) < K.r + 3) || !far(x, z, { x: 118, z: 114 }, 18) || (x > 152 && x < 190 && z > 100 && z < 168 && Math.abs((x - 160) * 0.937 + (z - 160) * 0.349) < 7)) continue;
     const g = grassAt(x, z, h), nearTown = Math.hypot(x - P.x, z - P.z) < 120, coastal = h < 4.6, t = R();
     if (coastal && h > 1.9) { if (t < 0.5 && want.palm.length < 230) want.palm.push([x, z, h, 0.95 + R() * 0.5]); else if (t > 0.93 && want.rock.length < 150) want.rock.push([x, z, h, 0.5 + R() * 1.2]); continue; }
     if (g < 0.55) { if (t < 0.08 && h > 3 && want.rock.length < 150) want.rock.push([x, z, h, 0.6 + R() * 1.6]); continue; }

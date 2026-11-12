@@ -26,18 +26,6 @@ export async function initExtras(G, loader) {
     const idle = { speed: 0, vy: 0, grounded: true, turn: 0, input: true }; st.emote('wave'); for (let i = 0; i < 30; i++) st.update(0.016, idle); st.anim.blinkT = 1e9; G.statue = st; addCircle(P.x, P.z, 0.9, P.h + 4.6); }
   // ------------------------------------------------ benches: E to sit, move to stand up
   for (const b of G.benches || []) G.thing({ x: b.x, z: b.z, y: b.y - 0.5, r: 1.7, label: 'Sit down', act: () => { ctl.sitAt(b.x + Math.sin(b.ry) * 0.12, b.y - 0.04, b.z + Math.cos(b.ry) * 0.12, b.ry); audio.ui(); hud.toast('Sitting', 'Move or jump to get up · X sits anywhere'); } });
-  // ------------------------------------------------ the twin arches: once the eastern gate is open, the plaza arch wakes as a portal between them
-  { const U = SPOTS.ruins, ry = Math.atan2(-30, 20), f = { x: Math.sin(ry), z: Math.cos(ry) }, ax = P.x - 39, az = P.z + 6, ary = Math.atan2(P.x - ax, P.z - az);
-    const pm = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, uniforms: { t: { value: 0 }, on: { value: 0 } }, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-      fragmentShader: 'uniform float t,on;varying vec2 vUv;void main(){vec2 p=vUv-.5;float r=length(p),a=atan(p.y,p.x);float s=sin(a*5.+r*18.-t*3.)*.5+.5;float m=smoothstep(.5,.42,r);vec3 c=mix(vec3(.1,.7,1.),vec3(.8,1.,1.),s*smoothstep(.5,0.,r));gl_FragColor=vec4(c*1.6,m*(.35+.5*s)*on);}' });
-    const mk = (x, z, ryy, s, y) => { const m = new T.Mesh(new T.CircleGeometry(2.0 * s, 40), pm); m.position.set(x, y + 3.3 * s, z); m.rotation.y = ryy; m.renderOrder = 4; root.add(m); return m; };
-    mk(ax + Math.sin(ary) * 0.5, az + Math.cos(ary) * 0.5, ary, 0.62, P.h); mk(U.x + f.x * 0.75, U.z + f.z * 0.75, ry, 0.0001, U.h);
-    const go = (x, z, yaw) => { hud.flash(); audio.star(); ctl.teleport(x, z); ctl.yaw = yaw; ctl.cam.yaw = yaw + Math.PI; G.sparkle(x, groundAt(x, z) + 1, z, 30, 4); };
-    const dormant = () => { ctl.locked = true; hud.dialog('Old Arch', ['The glyph is cold and dark.', 'It looks just like the gate in the <b>eastern ruins</b>. Maybe it wakes when its twin opens.'], () => (ctl.locked = false)); };
-    G.thing({ x: ax + Math.sin(ary) * 2.2, z: az + Math.cos(ary) * 2.2, r: 2.6, marker: '#7ff6ff', kind: 'portal', name: 'Old Arch', label: () => S.flags.ruinsOpen ? 'Step through to the ruins' : 'Touch the glyph', act: () => S.flags.ruinsOpen ? go(U.x + f.x * 11, U.z + f.z * 11, ry) : dormant() });
-    G.thing({ x: U.x - f.x * 6.5, z: U.z - f.z * 6.5, r: 2.4, label: 'Step through to the plaza', act: () => go(ax + Math.sin(ary) * 5, az + Math.cos(ary) * 5, ary) });
-    G.thing({ x: U.x + f.x * 2.6, z: U.z + f.z * 2.6, r: 2.2, label: () => S.flags.ruinsOpen ? 'Step through to the plaza' : 'The gate is sealed', act: () => S.flags.ruinsOpen ? go(ax + Math.sin(ary) * 5, az + Math.cos(ary) * 5, ary) : audio.bad() });
-    G.systems.push((dt) => { pm.uniforms.t.value += dt; pm.uniforms.on.value += ((S.flags.ruinsOpen ? 1 : 0) - pm.uniforms.on.value) * Math.min(1, dt * 2); }); }
   // ------------------------------------------------ mouse look: click the game to capture the cursor (Esc frees it); without it, A/D steer the camera
   canvas.addEventListener('click', () => { if (!hud.journalOpen && !hud.mapOpen && !document.pointerLockElement) canvas.requestPointerLock?.()?.catch?.(() => {}); });
   G.freeCursor = () => { if (document.pointerLockElement) document.exitPointerLock(); };

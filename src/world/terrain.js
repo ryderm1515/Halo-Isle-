@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { noise, fbm, ridged, sm, lerp } from '../util/noise.js';
-import { PEAK, HIGH, SPOTS, PATHS, PONDS } from './layout.js';
+import { PEAK, HIGH, SPOTS, PATHS, PONDS, STREAM, CAY, HARBOR, TERRACE } from './layout.js';
 import { tex, avg } from './materials.js';
 
 const adiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -16,8 +16,16 @@ export function shoreDist(x, z) {   // +inside the island, metres from the water
 const flats = [];   // {x,z,r,h,soft}
 export function addFlat(x, z, r, h, soft = 14) { flats.push({ x, z, r, h, soft }); }
 addFlat(SPOTS.plaza.x, SPOTS.plaza.z, SPOTS.plaza.r, SPOTS.plaza.h, 20);
+addFlat(HARBOR.x, HARBOR.z, HARBOR.r, HARBOR.h, 16); addFlat(TERRACE.x, TERRACE.z, TERRACE.r, TERRACE.h, 13);
 for (const k of ['observatory', 'ruins', 'windRidge']) if (SPOTS[k].r) addFlat(SPOTS[k].x, SPOTS[k].z, SPOTS[k].r, SPOTS[k].h, 12);
 
+// the stream bed: a profile that only ever runs downhill, cut a little below the land it crosses
+let noStream = false, sPts = null; const _si = { d: 1e9, h: 0, s: 0 };
+function initStream() { noStream = true; sPts = []; let prev = PONDS[1].level - 0.25, len = 0;
+  for (let i = 0; i < STREAM.length - 1; i++) { const [ax, az] = STREAM[i], [bx, bz] = STREAM[i + 1], L = Math.hypot(bx - ax, bz - az), n = Math.ceil(L / 2); for (let k = 0; k < n; k++) { const t = k / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, hh = Math.min(prev - 0.004, baseHeight(x, z) - 0.25); prev = Math.max(hh, -0.35); sPts.push({ x, z, h: prev, s: len + L * t }); } len += L; }
+  noStream = false; }
+export function streamInfo(x, z) { if (!sPts) initStream(); _si.d = 1e9; for (let i = 0; i < sPts.length - 1; i++) { const a = sPts[i], b = sPts[i + 1], abx = b.x - a.x, abz = b.z - a.z, t = Math.max(0, Math.min(1, ((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz))), d = Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t)); if (d < _si.d) { _si.d = d; _si.h = a.h + (b.h - a.h) * t; _si.s = a.s + (b.s - a.s) * t; } } return _si; }
+export const streamPoints = () => (sPts || (initStream(), sPts));
 function baseHeight(x, z) {
   const d = shoreDist(x, z);
   let h;
@@ -33,7 +41,14 @@ function baseHeight(x, z) {
   h = lerp(h, Math.max(h, L.h), sm(64, 44, dl) * sm(2, 12, d));
   h += 14 * gauss(Math.hypot(x - SPOTS.windRidge.x, z - SPOTS.windRidge.z), 60) * coast;
   h += 16 * gauss(Math.hypot(x - SPOTS.observatory.x, z - SPOTS.observatory.z), 42) * coast;
-  for (const K of PONDS) { const dk = Math.hypot((x - K.x) / K.sx, z - K.z); if (dk < K.r + 6) { const t = sm(K.r + 5, K.r - 2, dk); h = lerp(h, Math.min(h, K.level - K.depth * sm(K.r, K.r * 0.35, dk)), t); } }
+  for (const K of PONDS) { const dx = x - K.x, dz = z - K.z, dk = Math.hypot(dx / K.sx, dz); if (dk > K.r + 10) continue;
+    // a bank all the way round holds the water in, with one notch where it spills out
+    const fw = dx * K.out[0] + dz * K.out[1], lat = Math.abs(dx * K.out[1] - dz * K.out[0]), notch = fw > 0 ? sm(3.6, 2.2, lat) : 0, ring = sm(K.r - 1.5, K.r + 1, dk) * sm(K.r + 10, K.r + 4, dk);
+    h = lerp(h, Math.max(h, K.level + K.rim), ring * (1 - notch));
+    if (dk < K.r + 2) h = lerp(h, Math.min(h, K.level - K.depth * sm(K.r, K.r * 0.35, dk)), sm(K.r + 2, K.r - 1.5, dk));
+    if (notch > 0 && dk < K.r + 6) h = Math.min(h, lerp(h, K.level - 0.3, notch)); }
+  { const di = Math.hypot(x - CAY.x, z - CAY.z); if (di < 60) h = Math.max(h, -7 + 11.6 * sm(50, 6, di + noise(x * 0.05, z * 0.05) * 5)); }      // Coconut Cay
+  if (!noStream && x > -6 && x < 52 && z > 56 && z < 212) { const st = streamInfo(x, z); if (st.d < 6.5) { const bed = st.h - 0.75 * sm(2.6, 0.8, st.d); if (bed < h) h = lerp(h, bed, sm(6.5, 2.2, st.d)); } }
   for (const f of flats) { const t = sm(f.r + f.soft, f.r, Math.hypot(x - f.x, z - f.z)); if (t > 0) h = lerp(h, f.h, t); }
   return h;
 }
@@ -58,8 +73,8 @@ export function normalAt(x, z, out = new T.Vector3()) { const e = 0.6; return ou
 export const inPlaza = (x, z) => Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z) < SPOTS.plaza.r - 1;
 // how much meadow grass grows here (0..1): not on sand, cliffs, paths, the plaza or the bare upper mountain
 export function grassAt(x, z, h = heightAt(x, z)) {
-  if (h < 2.7 || h > 118) return 0; const e = 0.8, sl = Math.hypot(heightAt(x + e, z) - h, heightAt(x, z + e) - h) / e; if (sl > 0.62) return 0;
-  const p = pathInfo(x, z); if (p.d < p.w + 0.5) return 0; if (Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z) < SPOTS.plaza.r + 1.5) return 0;
+  if (h < 2.7 || h > 118) return 0; for (const K of PONDS) if (Math.hypot((x - K.x) / K.sx, z - K.z) < K.r + 2.5) return 0; if (x > -6 && x < 52 && z > 56 && z < 212 && streamInfo(x, z).d < 3.4) return 0; const e = 0.8, sl = Math.hypot(heightAt(x + e, z) - h, heightAt(x, z + e) - h) / e; if (sl > 0.62) return 0;
+  const p = pathInfo(x, z); if (p.d < p.w + 0.5) return 0; if (Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z) < SPOTS.plaza.r + 1.5 || Math.hypot(x - HARBOR.x, z - HARBOR.z) < HARBOR.r - 2 || Math.hypot(x - TERRACE.x, z - TERRACE.z) < TERRACE.r - 2) return 0;
   return sm(2.7, 3.6, h) * sm(0.62, 0.4, sl) * sm(p.w + 0.5, p.w + 1.6, p.d);
 }
 
@@ -85,7 +100,7 @@ export function buildTerrain() {
     const x = pos[k * 3], h = pos[k * 3 + 1], z = pos[k * 3 + 2], ny = nor[k * 3 + 1], nz = noise(x * 0.03, z * 0.03), n2 = noise(x * 0.11 + 9, z * 0.11);
     let sand = sm(3.3 + nz * 0.5, 2.3 + nz * 0.4, h), cliff = sm(0.8, 0.64, ny) * sm(2.5, 5, h);
     const bare = Math.min(1, sm(92, 122, h + nz * 8) * 0.85 + sm(120, 150, h) * 0.6); cliff = Math.max(cliff, bare * 0.9);
-    const p = pathInfo(x, z); let path = sm(p.w + 0.9, p.w - 0.2, p.d + n2 * 0.35); const dp = Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z); path = Math.max(path, sm(SPOTS.plaza.r + 1.5, SPOTS.plaza.r - 0.5, dp));
+    const p = pathInfo(x, z); let path = sm(p.w + 0.9, p.w - 0.2, p.d + n2 * 0.35); const dp = Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z); path = Math.max(path, sm(SPOTS.plaza.r + 1.5, SPOTS.plaza.r - 0.5, dp)); for (const F of [HARBOR, TERRACE]) path = Math.max(path, sm(F.r - 2 + n2 * 1.5, F.r - 5, Math.hypot(x - F.x, z - F.z)));
     path *= 1 - cliff; sand *= (1 - cliff) * (1 - path); const grass = Math.max(0, 1 - sand - cliff - path);
     c.copy(G1).lerp(G2, sm(-0.5, 0.6, nz)).lerp(G3, sm(0.3, 0.9, n2) * 0.55).multiplyScalar(grass);
     const sc = SAND.clone().lerp(SANDW, sm(0.9, 0.0, h) * 0.75); if (h < -0.2) sc.lerp(SEAB, sm(-0.2, -3, h));

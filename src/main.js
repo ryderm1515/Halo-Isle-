@@ -49,7 +49,7 @@ const { initLandmarks } = await import('./world/landmarks.js'); await initLandma
 const { initAmbient } = await import('./fx/ambient.js'); initAmbient(G);
 const { createHud } = await import('./ui/hud.js'); G.hud = createHud(G);
 const { initGame } = await import('./game/game.js'); await initGame(G, loader);
-for (const [file, fn, load] of [['extras', 'initExtras', () => import('./game/extras.js')], ['life', 'initLife', () => import('./game/life.js')], ['travel', 'initTravel', () => import('./game/travel.js')], ['animals', 'initAnimals', () => import('./game/animals.js')], ['daynight', 'initDayNight', () => import('./world/daynight.js')], ['interiors', 'initInteriors', () => import('./world/interiors.js')], ['more', 'initMore', () => import('./game/more.js')], ['items', 'initItems', () => import('./game/items.js')], ['golf', 'initGolf', () => import('./game/golf.js')], ['breeze', 'initBreeze', () => import('./fx/breeze.js')], ['places', 'initPlaces', () => import('./world/places.js')], ['screens', 'initScreens', () => import('./ui/screens.js')]]) { try { const m = await load(); await m[fn]?.(G, loader); } catch (e) { console.error('module failed', file, e); } }
+for (const [file, fn, load] of [['extras', 'initExtras', () => import('./game/extras.js')], ['life', 'initLife', () => import('./game/life.js')], ['travel', 'initTravel', () => import('./game/travel.js')], ['animals', 'initAnimals', () => import('./game/animals.js')], ['daynight', 'initDayNight', () => import('./world/daynight.js')], ['interiors', 'initInteriors', () => import('./world/interiors.js')], ['toys', 'initToys', () => import('./game/toys.js')], ['more', 'initMore', () => import('./game/more.js')], ['items', 'initItems', () => import('./game/items.js')], ['golf', 'initGolf', () => import('./game/golf.js')], ['breeze', 'initBreeze', () => import('./fx/breeze.js')], ['places', 'initPlaces', () => import('./world/places.js')], ['fishing', 'initFishing', () => import('./game/fishing.js')], ['portal', 'initPortal', () => import('./game/portal.js')], ['towns', 'initTowns', () => import('./world/towns.js')], ['cave', 'initCave', () => import('./game/cave.js')], ['sports', 'initSports', () => import('./game/sports.js')], ['arcade', 'initArcade', () => import('./game/arcade.js')], ['screens', 'initScreens', () => import('./ui/screens.js')]]) { try { const m = await load(); await m[fn]?.(G, loader); } catch (e) { console.error('module failed', file, e); } }
 
 if (Q.has('studio')) { ctl.cam.lookH = 0.5; terrain.mesh.visible = grass.mesh.visible = water.mesh.visible = sky.sky.visible = sky.clouds.visible = false; scene.background = new T.Color('#e9f1fb'); scene.fog = null; const fl = new T.Mesh(new T.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ color: '#eef4fc', roughness: 0.9 })); fl.receiveShadow = true; fl.position.copy(ctl.pos).y += 0.002; scene.add(fl); }
 if (Q.has('time') && G.time) { G.time.set(+Q.get('time')); G.time.paused = true; }
@@ -57,13 +57,17 @@ G.setQuality = (q) => { const pr = q === 'low' ? 0.75 : q === 'medium' ? 1 : Mat
 const clock = new T.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
+  sim(dt);
+  if (post && !G.postOff) post.render(); else renderer.render(scene, camera); G.frames++;
+  requestAnimationFrame(frame);
+}
+G.sim = (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) sim(dt); };   // step the game without drawing (tests)
+function sim(dt) {
   ctl.update(dt);
   WIND.time.value += dt; if (post) post.dof.focus.value = camera.position.distanceTo(ctl.cam.look);
   for (const s of G.systems) { try { s(dt, G); } catch (e) { if (!s.err) { s.err = 1; console.error('system error', e); } } }
   { const gy = groundAt(ctl.pos.x, ctl.pos.z, ctl.pos.y + 0.3), air = Math.max(0, ctl.pos.y - gy); blob.position.set(ctl.pos.x, Math.max(gy, -0.02) + 0.06, ctl.pos.z); const k = 1 / (1 + air * 0.55); blob.scale.setScalar(k); blob.material.opacity = 0.3 * k; blob.visible = gy > -0.3; }
   sun.target.position.copy(ctl.pos); sun.position.copy(ctl.pos).addScaledVector(G.lightDir || SUN_DIR, 160); sun.target.updateMatrixWorld();
   sky.update(dt, camera.position); water.update(dt, camera.position); grass.update(dt, ctl.cam.look, ctl.pos);
-  if (post && !G.postOff) post.render(); else renderer.render(scene, camera); G.frames++;
-  requestAnimationFrame(frame);
 }
 G.ready = true; frame();
