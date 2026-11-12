@@ -14,7 +14,7 @@ export async function initLife(G, loader) {
   const pol = (a, r) => [P.x + Math.cos(a * D) * r, P.z + Math.sin(a * D) * r], face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
   // ---- market stalls with their keepers
   const stalls = [['stall_fruit', 128, 24, 'Papaya', 'lemon', ['Fresh from the terraces! Well, they would be, if I ever sold any.', 'Take a look around the plaza. The <b>checkered flags</b> are races, and the old arch by the west side has a story.']],
-    ['stall_tint', 30, 26, null, null, null], ['stall_hats', -62, 25, 'Brim', 'tide', ['Hats! Finest on the island. Only on the island, really.', 'Open your <b>Journal</b> (Tab) and look under <b>Wardrobe</b>. Coins welcome.']]];
+    ['stall_tint', 30, 26, null, null, null], ['stall_hats', -62, 25, 'Brim', 'tide', ['Hats! Finest on the island. Only on the island, really.', 'Open your <b>Journal</b> (Tab) and look under <b>Wardrobe</b>. All free, help yourself.']]];
   for (const [name, a, r, who, tint, lines] of stalls) { const [x, z] = pol(a, r), ry = face(x, z, P.x, P.z); const o = models[name].clone(); o.position.set(x, P.h, z); o.rotation.y = ry; root.add(o); addBox(x, z, 1.45, 0.7, ry, P.h + 1.05);
     if (who) await G.npc(who, tint, x - Math.sin(ry) * 1.35, z - Math.cos(ry) * 1.35, 0.95, lines, { yaw: ry, wander: 0 }); }
   { const jo = G.npcs.find((n) => n.name === 'Jelly Jo'), [x, z] = pol(30, 26), ry = face(x, z, P.x, P.z); if (jo) { jo.x = jo.home.x = x - Math.sin(ry) * 1.35; jo.z = jo.home.z = z - Math.cos(ry) * 1.35; jo.yaw = ry; jo.wander = 0; jo.h.group.position.set(jo.x, P.h, jo.z); jo.h.group.rotation.y = ry; jo.col.x = jo.x; jo.col.z = jo.z; jo.thing.x = jo.x; jo.thing.z = jo.z; } }

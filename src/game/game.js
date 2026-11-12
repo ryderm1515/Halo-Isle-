@@ -41,7 +41,7 @@ export async function initGame(G, loader) {
   await npc('Nova', 'grape', SPOTS.observatory.x - 8.5, SPOTS.observatory.z + 5.5, 1.0, () => { if (S.shards.observatory) return ['The telescope shows the halo clearer every night. Thank you.']; const n = count(S.stars); return n >= 10 ? ['Ten Sun Stars! Their light is just what the lens needed.', 'Look, it focused the glow into a <b>halo shard</b>. It\'s yours.'] : ['I chart the halo from up here. The big lens has gone dark, though.', `Sun Stars would relight it. Bring me <b>10</b> and I'll show you something. You have ${n}.`]; },
     { yaw: -2.2, after: () => { if (!S.shards.observatory && count(S.stars) >= 10) giveShard('observatory'); } });
   await npc('Beacon', 'pearl', SPOTS.lighthouse.x + 8, SPOTS.lighthouse.z + 3, 1.05, ['I keep the lamp lit. Forty years now.', 'Something bright came down past the tip of the cape one night. Have a look out on the point.'], { yaw: 1.4 });
-  await npc('Jelly Jo', 'peach', P.x + 22, P.z + 21, 0.9, ['Fancy a new colour? I mix jelly tints!', 'Open your <b>Journal</b> with <b>Tab</b> and pick one. Coins welcome.'], { yaw: -2.4 });
+  await npc('Jelly Jo', 'peach', P.x + 22, P.z + 21, 0.9, ['Fancy a new colour? I mix jelly tints!', 'Open your <b>Journal</b> with <b>Tab</b> and pick one. They are all free.'], { yaw: -2.4 });
 
   // ------------------------------------------------------------------ breeze lifts (updraft columns up the cliffs)
   const liftMat = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending, uniforms: { t: { value: 0 } },
