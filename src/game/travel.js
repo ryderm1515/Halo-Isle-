@@ -62,14 +62,24 @@ export async function initTravel(G, loader) {
   const stands = [[SPOTS.windRidge.x + 9, SPOTS.windRidge.z + 12], [SPOTS.observatory.x - 12, SPOTS.observatory.z + 9], [PEAK.x + 18, PEAK.z + 12], [SPOTS.lighthouse.x - 6, SPOTS.lighthouse.z + 10], [-8, -22], [P.x + 30, P.z - 30]];
   for (const [x, z] of stands) { const y = groundAt(x, z), st = models.glider.clone(); st.position.set(x, y + 0.1, z); st.rotation.set(-0.35, 0.6, 0); st.scale.setScalar(0.9); root.add(st); const post = new T.Mesh(new T.CylinderGeometry(0.06, 0.08, 1.6, 8), new T.MeshStandardMaterial({ color: '#c98a4b' })); post.position.set(x + 0.9, y + 0.8, z); root.add(post);
     G.thing({ x, z, r: 2.6, marker: '#ffb04a', kind: 'glider', name: 'Hang glider', label: () => S.flags.glider ? 'Hang glider (you have one)' : 'Take a hang glider', act: () => { if (!S.flags.glider) { S.flags.glider = 1; save(); audio.fanfare(); hero.emote('celebrate'); G.addItem?.('glider', 1, true); } else audio.good(); hud.toast('Hang glider', 'Jump, hop again, then press Space in the air to open it'); } }); }
-  const fold = () => { if (!flying) return; flying = false; ctl.flight = null; ctl.state.hang = false; audio.glide?.(false); };
+  const fold = () => { if (!flying) return; flying = false; ctl.flight = null; ctl.rideSpeed = 0; ctl.state.hang = false; audio.glide?.(false); };
   on('flightdrop', fold);
-  ctl.onAirPress = () => { if (!S.flags.glider || flying || ctl.state.swim || G.busy) return; flying = true; head = ctl.yaw; fv = Math.max(10.5, ctl.state.speed + 2.5); pitch = -0.06; roll = 0; ctl.state.hang = true; audio.glide?.(true); audio.ui(); if (ctl.vel.y < -6) ctl.vel.y = -6;
-    ctl.flight = (d, inp, vel) => { pitch += (inp.mz * 0.5 - pitch) * Math.min(1, d * 2.4); roll += (inp.mx * 0.75 - roll) * Math.min(1, d * 3.5); head -= roll * 1.75 * d;
-      fv += (-Math.sin(pitch) * 17 - 0.22 * (fv - 11.5)) * d; fv = Math.max(4.5, Math.min(30, fv)); const stall = fv < 7.5 ? (7.5 - fv) * 1.7 : 0, sink = 1.25 + stall, cp = Math.cos(pitch);
-      const ty = fv * Math.sin(pitch) - sink; vel.x = Math.sin(head) * fv * cp; vel.z = Math.cos(head) * fv * cp; vel.y += (ty - vel.y) * Math.min(1, d * 6); }; };
+  // Flight is energy-based: diving turns height into speed, pulling up turns speed back into height, and drag is light,
+  // so a swooping glider can stay up a long time. Everything is spring-smoothed so it never snaps.
+  let pitchV = 0, rollV = 0, lift = 0;
+  ctl.onAirPress = () => { if (!S.flags.glider || flying || ctl.state.swim || G.busy) return; flying = true; head = ctl.yaw; fv = Math.max(12, Math.hypot(ctl.vel.x, ctl.vel.z) + 3); pitch = -0.1; roll = 0; pitchV = rollV = 0; ctl.state.hang = true; audio.glide?.(true); audio.ui(); if (ctl.vel.y < -4) ctl.vel.y = -4;
+    ctl.flight = (d, inp, vel) => { const spring = (x, v, tgt, w) => { const a = w * w * (tgt - x) - 2 * w * v; v += a * d; return [x + v * d, v]; };
+      const stall = fv < 8, want = stall ? -0.42 : inp.mz * 0.62 - 0.07;   // W noses down, S pulls up, hands off holds a shallow glide
+      [pitch, pitchV] = spring(pitch, pitchV, want, 3.2); [roll, rollV] = spring(roll, rollV, inp.mx * 0.7, 4.2);
+      head -= Math.tan(roll) * 9.8 / Math.max(fv, 8) * d * 1.15;                                  // a coordinated turn: bank to steer
+      fv += (-9.8 * Math.sin(pitch) - 0.0011 * fv * fv - 0.12) * d; fv = Math.max(5, Math.min(46, fv));   // gravity along the path, light drag
+      // updrafts off rising ground and warm sand, so you can ride the island
+      const gx = ctl.pos.x + Math.sin(head) * 6, gz = ctl.pos.z + Math.cos(head) * 6, above = ctl.pos.y - heightAt(ctl.pos.x, ctl.pos.z), rise = heightAt(gx, gz) - heightAt(ctl.pos.x, ctl.pos.z);
+      lift += ((above < 40 && rise > 0.5 ? Math.min(4, rise * 0.9) : 0) + (G.wind?.gust || 1) * 0.15 - lift) * Math.min(1, d * 1.5);
+      const cp = Math.cos(pitch), sink = stall ? 2.5 : 0.35, ty = fv * Math.sin(pitch) - sink + lift; vel.x = Math.sin(head) * fv * cp; vel.z = Math.cos(head) * fv * cp; vel.y += (ty - vel.y) * Math.min(1, d * 8);
+      ctl.rideSpeed = fv; }; };
   G.systems.push((dt) => { openK += ((flying ? 1 : 0) - openK) * Math.min(1, dt * (flying ? 9 : 14)); glPivot.visible = openK > 0.03; const e = openK * openK * (3 - 2 * openK); glPivot.scale.set(0.25 + e * 0.75, e, e);
-    const g = hero.group; if (flying) { g.rotation.z = -roll * 0.75; g.rotation.x = -pitch * 0.55; glPivot.rotation.set(0.12 + pitch * 0.2, 0, roll * 0.1 + Math.sin(tw * 5) * 0.012); if (Math.random() < dt * 9) G.puff?.(ctl.pos.x - Math.sin(head) * 1.2 + (Math.random() - 0.5) * 3, ctl.pos.y + 1.3, ctl.pos.z - Math.cos(head) * 1.2 + (Math.random() - 0.5) * 3, 1, '#ffffff', 0.2, 0.1); }
+    const g = hero.group; if (flying) { g.rotation.z = -roll * 0.85; g.rotation.x = -pitch * 0.6; glPivot.rotation.set(0.12 + pitch * 0.2, 0, roll * 0.1 + Math.sin(tw * 5) * 0.012); if (Math.random() < dt * 9) G.puff?.(ctl.pos.x - Math.sin(head) * 1.2 + (Math.random() - 0.5) * 3, ctl.pos.y + 1.3, ctl.pos.z - Math.cos(head) * 1.2 + (Math.random() - 0.5) * 3, 1, '#ffffff', 0.2, 0.1); }
     else if (g.rotation.z || g.rotation.x) { g.rotation.z *= Math.exp(-dt * 12); g.rotation.x *= Math.exp(-dt * 12); if (Math.abs(g.rotation.z) + Math.abs(g.rotation.x) < 0.002) g.rotation.z = g.rotation.x = 0; } });
   // ------------------------------------------------ under the sea: hold C in deep water to dive; pearls wait on the seabed
   const tint = document.createElement('div'); tint.style.cssText = 'position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(60,190,230,.25),rgba(10,70,150,.6));opacity:0;transition:opacity .35s;pointer-events:none'; hud.root.prepend(tint);

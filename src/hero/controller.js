@@ -115,7 +115,7 @@ export function createController(hero, camera) {
       // ---- third-person camera: orbit + gentle auto-follow + ground avoidance, a little wider when you are fast
       cam.yaw += input.lookX; cam.pitch = clamp(cam.pitch - input.lookY, -0.25, 1.25); input.lookX = input.lookY = 0;
       if (input.zoom) { cam.tDist = clamp(cam.tDist + input.zoom * 0.8, 3, 14); input.zoom = 0; }
-      if (performance.now() - lastInput > 1600 && sp > 1.5 && (wl > 0.1 || state.sliding)) { let d = (yaw + Math.PI) - cam.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) < 2.6) cam.yaw += d * Math.min(1, dt * (state.sliding ? 2.2 : 0.9)); }
+      if ((performance.now() - lastInput > 1600 && sp > 1.5 && (wl > 0.1 || state.sliding)) || (api.flight && performance.now() - lastInput > 700)) { let d = (yaw + Math.PI) - cam.yaw; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; if (Math.abs(d) < 2.6 || api.flight) cam.yaw += d * Math.min(1, dt * (api.flight ? 1.8 : state.sliding ? 2.2 : 0.9)); }
       const fsp = Math.max(sp, api.rideSpeed || 0); cam.dist = damp(cam.dist, (cam.maxDist ? Math.min(cam.tDist, cam.maxDist) : cam.tDist) + clamp((fsp - 7) * 0.22, 0, 3.4), 5, dt);
       camera.fov = damp(camera.fov, 52 + clamp((fsp - 7) * 1.0, 0, 20), 4, dt); camera.updateProjectionMatrix();
       const tx = pos.x + vel.x * 0.12, tz = pos.z + vel.z * 0.12, ty = pos.y + (cam.lookH ?? 1.0);

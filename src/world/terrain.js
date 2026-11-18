@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { noise, fbm, ridged, sm, lerp } from '../util/noise.js';
 import { PEAK, HIGH, SPOTS, PATHS, PONDS, STREAM, CAY, HARBOR, TERRACE } from './layout.js';
+import { SNOW } from '../fx/snow.js';
 import { tex, avg } from './materials.js';
 
 const adiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -21,10 +22,11 @@ for (const k of ['observatory', 'ruins', 'windRidge']) if (SPOTS[k].r) addFlat(S
 
 // the stream bed: a profile that only ever runs downhill, cut a little below the land it crosses
 let noStream = false, sPts = null; const _si = { d: 1e9, h: 0, s: 0 };
-function initStream() { noStream = true; sPts = []; let prev = PONDS[1].level - 0.25, len = 0;
-  for (let i = 0; i < STREAM.length - 1; i++) { const [ax, az] = STREAM[i], [bx, bz] = STREAM[i + 1], L = Math.hypot(bx - ax, bz - az), n = Math.ceil(L / 2); for (let k = 0; k < n; k++) { const t = k / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, hh = Math.min(prev - 0.004, baseHeight(x, z) - 0.25); prev = Math.max(hh, -0.35); sPts.push({ x, z, h: prev, s: len + L * t }); } len += L; }
+function initStream() { noStream = true; sPts = []; const K = PONDS[1]; let prev = K.level - 0.25, len = 0;
+  for (let i = 0; i < STREAM.length - 1; i++) { const [ax, az] = STREAM[i], [bx, bz] = STREAM[i + 1], L = Math.hypot(bx - ax, bz - az), n = Math.ceil(L / 2); for (let k = 0; k <= (i === STREAM.length - 2 ? n : n - 1); k++) { const t = k / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, hh = Math.hypot(x - K.x, z - K.z) < K.r + 1.5 ? prev : Math.min(prev - 0.004, baseHeight(x, z) - 0.25); prev = Math.max(hh, -0.35); sPts.push({ x, z, h: prev, s: len + L * t }); } len += L; }
   noStream = false; }
 export function streamInfo(x, z) { if (!sPts) initStream(); _si.d = 1e9; for (let i = 0; i < sPts.length - 1; i++) { const a = sPts[i], b = sPts[i + 1], abx = b.x - a.x, abz = b.z - a.z, t = Math.max(0, Math.min(1, ((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz))), d = Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t)); if (d < _si.d) { _si.d = d; _si.h = a.h + (b.h - a.h) * t; _si.s = a.s + (b.s - a.s) * t; } } return _si; }
+export const baseH = (x, z) => { const o = noStream; noStream = true; const v = baseHeight(x, z); noStream = o; return v; };
 export const streamPoints = () => (sPts || (initStream(), sPts));
 function baseHeight(x, z) {
   const d = shoreDist(x, z);
@@ -48,8 +50,8 @@ function baseHeight(x, z) {
     if (dk < K.r + 2) h = lerp(h, Math.min(h, K.level - K.depth * sm(K.r, K.r * 0.35, dk)), sm(K.r + 2, K.r - 1.5, dk));
     if (notch > 0 && dk < K.r + 6) h = Math.min(h, lerp(h, K.level - 0.3, notch)); }
   { const di = Math.hypot(x - CAY.x, z - CAY.z); if (di < 60) h = Math.max(h, -7 + 11.6 * sm(50, 6, di + noise(x * 0.05, z * 0.05) * 5)); }      // Coconut Cay
-  if (!noStream && x > -6 && x < 52 && z > 56 && z < 212) { const st = streamInfo(x, z); if (st.d < 6.5) { const bed = st.h - 0.75 * sm(2.6, 0.8, st.d); if (bed < h) h = lerp(h, bed, sm(6.5, 2.2, st.d)); } }
   for (const f of flats) { const t = sm(f.r + f.soft, f.r, Math.hypot(x - f.x, z - f.z)); if (t > 0) h = lerp(h, f.h, t); }
+  if (!noStream && x > -40 && x < 50 && z > 50 && z < 262) { const st = streamInfo(x, z); if (st.d < 5.5) { const bed = st.h - 0.7 * sm(2.3, 0.6, st.d); if (bed < h) h = lerp(h, bed, sm(5.5, 1.9, st.d)); } }   // a soft-banked creek bed, cut after the flats so the plaza never fills it
   return h;
 }
 // footpaths: [dist to nearest path centre line, that path's height, width]
@@ -66,14 +68,14 @@ export function pathInfo(x, z) {
 }
 export function heightAt(x, z) {
   let h = baseHeight(x, z); const p = pathInfo(x, z);
-  if (p.d < p.w + 5) h = lerp(h, p.h, sm(p.w + 5, p.w * 0.7, p.d));
+  if (p.d < p.w + 5) { let k = sm(p.w + 5, p.w * 0.7, p.d); if (x > -40 && x < 50 && z > 50 && z < 262) k *= sm(2.5, 6, streamInfo(x, z).d); h = lerp(h, p.h, k); }   // paths stop at the creek banks; a bridge carries them over
   return h;
 }
 export function normalAt(x, z, out = new T.Vector3()) { const e = 0.6; return out.set(heightAt(x - e, z) - heightAt(x + e, z), 2 * e, heightAt(x, z - e) - heightAt(x, z + e)).normalize(); }
 export const inPlaza = (x, z) => Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z) < SPOTS.plaza.r - 1;
 // how much meadow grass grows here (0..1): not on sand, cliffs, paths, the plaza or the bare upper mountain
 export function grassAt(x, z, h = heightAt(x, z)) {
-  if (h < 2.7 || h > 118) return 0; for (const K of PONDS) if (Math.hypot((x - K.x) / K.sx, z - K.z) < K.r + 2.5) return 0; if (x > -6 && x < 52 && z > 56 && z < 212 && streamInfo(x, z).d < 3.4) return 0; const e = 0.8, sl = Math.hypot(heightAt(x + e, z) - h, heightAt(x, z + e) - h) / e; if (sl > 0.62) return 0;
+  if (h < 2.7 || h > 118) return 0; for (const K of PONDS) if (Math.hypot((x - K.x) / K.sx, z - K.z) < K.r + 2.5) return 0; if (x > 0 && x < 50 && z > 50 && z < 262 && streamInfo(x, z).d < 3.0) return 0; const e = 0.8, sl = Math.hypot(heightAt(x + e, z) - h, heightAt(x, z + e) - h) / e; if (sl > 0.62) return 0;
   const p = pathInfo(x, z); if (p.d < p.w + 0.5) return 0; if (Math.hypot(x - SPOTS.plaza.x, z - SPOTS.plaza.z) < SPOTS.plaza.r + 1.5 || Math.hypot(x - HARBOR.x, z - HARBOR.z) < HARBOR.r - 2 || Math.hypot(x - TERRACE.x, z - TERRACE.z) < TERRACE.r - 2) return 0;
   return sm(2.7, 3.6, h) * sm(0.62, 0.4, sl) * sm(p.w + 0.5, p.w + 1.6, p.d);
 }
@@ -110,14 +112,14 @@ export function buildTerrain() {
   }
   geo.setAttribute('color', new T.BufferAttribute(col, 3)); geo.setAttribute('splat', new T.BufferAttribute(spl, 4));
   const U = { tS: { value: tex('coast_sand_01') }, tG: { value: tex('leafy_grass') }, tC: { value: tex('cliff_side') }, tP: { value: tex('rectangular_paving') }, nG: { value: tex('leafy_grass', 'nor_gl') }, nC: { value: tex('cliff_side', 'nor_gl') },
-    aS: { value: avg('coast_sand_01') }, aG: { value: avg('leafy_grass') }, aC: { value: avg('cliff_side') }, aP: { value: avg('rectangular_paving') }, plaza: { value: new T.Vector3(SPOTS.plaza.x, SPOTS.plaza.z, SPOTS.plaza.r) } };
+    aS: { value: avg('coast_sand_01') }, aG: { value: avg('leafy_grass') }, aC: { value: avg('cliff_side') }, aP: { value: avg('rectangular_paving') }, plaza: { value: new T.Vector3(SPOTS.plaza.x, SPOTS.plaza.z, SPOTS.plaza.r) }, snow: SNOW };
   const mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 });
   mat.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, U);
     s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 splat;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSp=splat;vWp=(modelMatrix*vec4(position,1.)).xyz;vWn=normal;');
     s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D tS,tG,tC,tP,nG,nC;uniform vec3 aS,aG,aC,aP,plaza;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;
+      uniform sampler2D tS,tG,tC,tP,nG,nC;uniform vec3 aS,aG,aC,aP,plaza;uniform float snow;varying vec4 vSp;varying vec3 vWp;varying vec3 vWn;
       vec3 det(sampler2D t,vec3 a,vec2 uv){vec3 c=texture2D(t,uv).rgb;return mix(vec3(1.),c/a,.85);}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec4 w=vSp/max(vSp.x+vSp.y+vSp.z+vSp.w,1e-3);
@@ -131,7 +133,8 @@ export function buildTerrain() {
         { float pr=length(vWp.xz-plaza.xy); float ring=(smoothstep(5.4,5.7,pr)*smoothstep(7.4,7.1,pr)+smoothstep(15.6,15.9,pr)*smoothstep(17.3,17.,pr)+smoothstep(plaza.z-4.6,plaza.z-4.3,pr)*smoothstep(plaza.z-2.6,plaza.z-2.9,pr))*step(pr,plaza.z)*w.w;
           float ang=atan(vWp.z-plaza.y,vWp.x-plaza.x); float brick=step(.12,fract(ang*pr*.9))*step(.1,fract(pr*2.4));
           diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.80,.47,.40)*mix(.78,1.,brick)*mix(.9,1.08,dP.r),ring*.9);
-          float seam=smoothstep(.06,.0,abs(fract(pr/3.4)-.5)-.47)*step(pr,plaza.z)*w.w*(1.-ring); diffuseColor.rgb*=1.-seam*.12; }`)
+          float seam=smoothstep(.06,.0,abs(fract(pr/3.4)-.5)-.47)*step(pr,plaza.z)*w.w*(1.-ring); diffuseColor.rgb*=1.-seam*.12; }
+        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.93,.96,1.)*mix(.92,1.,dG.r),snow*smoothstep(.45,.8,normalize(vWn).y)*smoothstep(.2,1.6,vWp.y)*(1.-w.w*.3));`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         { vec4 w2=vSp/max(vSp.x+vSp.y+vSp.z+vSp.w,1e-3); vec3 an2=abs(normalize(vWn)); vec2 uvc2=an2.x>an2.z?vec2(vWp.z,vWp.y):vec2(vWp.x,vWp.y);
           vec3 tn=(texture2D(nG,vWp.xz*.42).xyz*2.-1.)*w2.y+(texture2D(nC,mix(uvc2,vWp.xz,smoothstep(.55,.8,an2.y))*.085).xyz*2.-1.)*(w2.z*1.6)+vec3(0.,0.,1.)*(w2.x+w2.w);

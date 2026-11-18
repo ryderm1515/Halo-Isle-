@@ -22,9 +22,9 @@ export const PATHS = [
 ];
 
 // Fresh-water bodies: the highland lake that feeds the falls, and the plunge pool below them.
-export const PONDS = [ { x: 34, z: 35, r: 14, depth: 4.5, level: 34.4, sx: 1.3, rim: 0.7, out: [0.2516, 0.9678] }, { x: 40.5, z: 60, r: 8.5, depth: 2.6, level: 5.9, sx: 1, rim: 0.35, out: [-0.31, 0.95] } ];
+export const PONDS = [ { x: 34, z: 35, r: 14, depth: 4.5, level: 34.4, sx: 1.3, rim: 0.7, out: [0.2516, 0.9678] }, { x: 40.5, z: 60, r: 8.5, depth: 2.8, level: 8.0, sx: 1, rim: 0.35, out: [-0.243, 0.97] } ];
 // A stream runs from the plunge pool down to the west end of the beach.
-export const STREAM = [[40.5, 60], [37, 72], [28, 94], [15, 122], [7, 150], [4, 176], [9, 204]];
+export const STREAM = [[40.5, 60], [37.5, 72], [34.5, 86], [32, 104], [31, 120], [29.5, 134], [25, 150], [19.5, 166], [14.5, 182], [11.5, 198], [10, 214], [9, 232], [9, 252]];   // keeps east of the driving range tee and west of the plaza
 export const CAY = { x: 176, z: 346, r: 24 };          // Coconut Cay, the islet off the south-east shore
 export const HARBOR = { x: -122, z: -168, h: 3.6, r: 24 };   // Driftwood Harbor on the north-west shore
 export const TERRACE = { x: 10, z: 0, h: 70.5, r: 15 };      // Cloudrest, the high terrace above town

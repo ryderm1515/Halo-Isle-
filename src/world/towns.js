@@ -1,9 +1,9 @@
 import * as T from 'three';
 import { S, save } from '../game/state.js';
 import { audio } from '../game/audio.js';
-import { heightAt, streamPoints } from './terrain.js';
+import { heightAt, streamPoints, streamInfo } from './terrain.js';
 import { groundAt, addCircle, addBox, addPlatform } from './colliders.js';
-import { SPOTS, HARBOR, TERRACE, CAY, PEAK } from './layout.js';
+import { SPOTS, HARBOR, TERRACE, CAY, PEAK, PONDS, PATHS } from './layout.js';
 import { models } from './world.js';
 import { rng } from '../util/noise.js';
 import { initKit, col, mk, box, cyl, signBoard } from '../game/kit.js';
@@ -61,26 +61,36 @@ export async function initTowns(G) {
     await G.npc('Robin', 'lemon', K.x + 1.5, K.z + 4.5, 0.95, () => ['A visitor! I have been "shipwrecked" here since Tuesday. On purpose. It is lovely.', S.flags.cayChest ? 'You found the chest! I walked past that spot a hundred times.' : 'I keep tripping over something hard in the sand, east of the hut…'], { yaw: 2.6, wander: 3 });
     signBoard(root, 'COCONUT CAY', K.x - 9, y(K.x - 9, K.z - 6), K.z - 6, -1, 2.2, 'population: 1'); G.areas?.push(['Coconut Cay', 'A speck of sand out to sea', K.x, K.z, 30]); }
   // ------------------------------------------------ the stream from the falls to the sea
-  { const pts = streamPoints(), pos = [], uv = [], idx = [], W = 1.5; let n = 0;
-    for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, p = pts[i], yy = p.h - 0.42; for (const e of [-1, 1]) { pos.push(p.x - dz / l * e * W, yy, p.z + dx / l * e * W); uv.push(e * 0.5 + 0.5, p.s); } if (i) { const k = (n - 1) * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } n++; }
+  { const pts = streamPoints(), pos = [], uv = [], idx = [], W = 1.7, K = PONDS[1]; let n = 0;
+    // the surface: level with the plunge pool where it leaves, then running down with the bed, so there is no step at the outlet
+    const surfY = (p) => { const d = Math.hypot(p.x - K.x, p.z - K.z), k = Math.min(1, Math.max(0, (d - K.r + 1) / 6)); return K.level + (p.h - 0.4 - K.level) * k * k * (3 - 2 * k); };
+    for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, p = pts[i], yy = surfY(p); for (const e of [-1, 1]) { pos.push(p.x - dz / l * e * W, yy, p.z + dx / l * e * W); uv.push(e * 0.5 + 0.5, p.s); } if (i) { const k = (n - 1) * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } n++; }
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); const U = { t: { value: 0 } };
     const mat = new T.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: `uniform float t;varying vec2 vUv;float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
-        void main(){float v=vUv.y*.9-t*1.1;float s=n(vec2(vUv.x*5.,v*1.4))*.6+n(vec2(vUv.x*13.,v*3.))*.4;float edge=smoothstep(0.,.22,vUv.x)*smoothstep(1.,.78,vUv.x);vec3 c=mix(vec3(.16,.78,.9),vec3(.75,.97,1.),smoothstep(.55,.85,s));c=mix(vec3(.9,1.,1.),c,smoothstep(.0,.35,edge));gl_FragColor=vec4(c,edge*.82+.0);
+        void main(){float v=vUv.y*.9-t*1.1;float s=n(vec2(vUv.x*5.,v*1.4))*.6+n(vec2(vUv.x*13.,v*3.))*.4;float edge=smoothstep(0.,.18,vUv.x)*smoothstep(1.,.82,vUv.x);vec3 c=mix(vec3(.16,.78,.9),vec3(.75,.97,1.),smoothstep(.55,.85,s));c=mix(vec3(.9,1.,1.),c,smoothstep(.0,.35,edge));gl_FragColor=vec4(c,edge*.85);
           #include <colorspace_fragment>
         }` });
     const m = new T.Mesh(geo, mat); m.renderOrder = 1; root.add(m); G.systems.push((dt) => (U.t.value += dt));
-    // footbridges where the paths cross it
-    const bridge = (x, z, ry, len = 6) => { const g = new T.Group(), y0 = groundAt(x, z); g.position.set(x, y0, z); g.rotation.y = ry; root.add(g); for (let i = 0; i < 12; i++) { const k = i / 11 - 0.5; box(2.6, 0.1, len / 12 + 0.02, i % 2 ? wood : woodD, 0, 0.2 + Math.cos(k * Math.PI) * 0.35, k * len, g).rotation.x = Math.sin(k * Math.PI) * 0.18; } for (const e of [-1, 1]) { for (const k of [-0.5, 0, 0.5]) cyl(0.06, 0.07, 1.1, woodD, e * 1.25, 0.6 + Math.cos(k * Math.PI) * 0.35, k * len, g, 8); const c = new T.CatmullRomCurve3([-0.5, -0.25, 0, 0.25, 0.5].map((k) => new T.Vector3(e * 1.25, 1.1 + Math.cos(k * Math.PI) * 0.35, k * len))); mk(new T.TubeGeometry(c, 16, 0.045, 6), wood, 0, 0, 0, g, false); }
-      addPlatform({ x, z, hw: 1.3, hd: len / 2, rotY: ry, y: (px, pz) => { const k = ((px - x) * Math.sin(ry) + (pz - z) * Math.cos(ry)) / len; return y0 + 0.25 + Math.cos(Math.max(-0.5, Math.min(0.5, k)) * Math.PI) * 0.35; } }); };
-    bridge(5.2, 163.2, Math.atan2(-46, 12), 7); bridge(40.5, 70.5, Math.atan2(7, -2.5), 5.5); }
+    // footbridges wherever a path crosses the creek: long enough to land on the banks, level with the higher bank, with a gentle arch
+    const bridge = (x, z, ry) => { const ax = Math.sin(ry), az = Math.cos(ry); let half = 3; while (half < 9 && streamInfo(x + ax * half, z + az * half).d < 5.6 && streamInfo(x - ax * half, z - az * half).d < 5.6) half += 0.25; half += 0.9;
+      const yA = heightAt(x - ax * half, z - az * half), yB = heightAt(x + ax * half, z + az * half), len = half * 2, deckY = (k) => yA + (yB - yA) * (k + 0.5) + Math.cos(k * Math.PI) * 0.45 + 0.12;
+      const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = ry; root.add(g); const N = Math.round(len / 0.5);
+      for (let i = 0; i < N; i++) { const k = (i + 0.5) / N - 0.5, k2 = k + 0.5 / N, k1 = k - 0.5 / N, pl = box(2.5, 0.1, len / N - 0.04, i % 2 ? wood : woodD, 0, deckY(k), k * len, g); pl.rotation.x = -Math.atan2(deckY(k2) - deckY(k1), len / N); }
+      for (const e of [-1, 1]) { const rail = []; for (let q = 0; q <= 4; q++) { const k = q / 4 - 0.5; cyl(0.06, 0.07, 1.15, woodD, e * 1.22, deckY(k) + 0.55, k * len, g, 8); rail.push(new T.Vector3(e * 1.22, deckY(k) + 1.1, k * len)); } mk(new T.TubeGeometry(new T.CatmullRomCurve3(rail), 24, 0.045, 6), wood, 0, 0, 0, g, false);
+        for (const k of [-0.5, 0.5]) { const py = Math.min(yA, yB) - 1; cyl(0.11, 0.12, deckY(k) - py, woodD, e * 1.22, (deckY(k) + py) / 2, k * len * 0.7, g, 8); } }
+      addPlatform({ x, z, hw: 1.3, hd: half, rotY: ry, y: (px, pz) => deckY(Math.max(-0.5, Math.min(0.5, ((px - x) * ax + (pz - z) * az) / len))) + 0.05 }); };
+    // find the crossings
+    const crosses = []; for (const P_ of PATHS) for (let i = 0; i < P_.pts.length - 1; i++) { const [ax, az] = P_.pts[i], [bx, bz] = P_.pts[i + 1]; for (let j = 0; j < pts.length - 1; j++) { const c = pts[j], d = pts[j + 1], den = (bx - ax) * (d.z - c.z) - (bz - az) * (d.x - c.x); if (Math.abs(den) < 1e-6) continue; const t = ((c.x - ax) * (d.z - c.z) - (c.z - az) * (d.x - c.x)) / den, u = ((c.x - ax) * (bz - az) - (c.z - az) * (bx - ax)) / den; if (t >= 0 && t <= 1 && u >= 0 && u <= 1) crosses.push([ax + (bx - ax) * t, az + (bz - az) * t, Math.atan2(d.x - c.x, d.z - c.z) + Math.PI / 2]); } }
+    for (const [qx, qz] of [[37, 74], [24, 124]]) { let j = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p.x - qx, p.z - qz); if (d < bd) { bd = d; j = i; } }); const a = pts[Math.max(0, j - 1)], b = pts[Math.min(pts.length - 1, j + 1)]; crosses.push([pts[j].x, pts[j].z, Math.atan2(b.x - a.x, b.z - a.z) + Math.PI / 2]); }   // below the pool, and beside the driving range tee
+    for (const [x, z, ry] of crosses) if (heightAt(x, z) > 0.4) bridge(x, z, ry); G.streamBridges = crosses; }
   // ------------------------------------------------ signs where the paths leave the plaza and at the sights
   for (const [text, sub, x, z, ry] of [['HALO FALLS', 'path north · mind the spray', 79, 116, 0.1], ['RESORT BEACH', 'pier · jet skis · games', 61, 199, 0.7], ['OLD RUINS', 'east along the ridge path', 121, 147, -1.0], ['LIGHTHOUSE CAPE', 'west coast path · driving range', 33, 163, 1.3], ['MIRROR LAKE', 'quiet, please: fish thinking', 56, 37, -1.6], ['HALO PEAK', 'summit by breeze lift only', PEAK.x + 66, PEAK.z + 44, 0.8]]) { const y = groundAt(x, z); if (y > 1) { signBoard(root, text, x, y, z, ry, 2.5, sub); addCircle(x, z, 0.3); } }
   // ------------------------------------------------ first arrivals get a short establishing shot
   const intro = (flag, x, z, r, shots) => G.systems.push(() => { if (S.flags[flag] || G.cine || G.busy || ctl.driving || !G.cutscene || G.indoors || G.inTitle) return; if (Math.hypot(ctl.pos.x - x, ctl.pos.z - z) < r && ctl.state.grounded) { S.flags[flag] = 1; save(); G.cutscene(shots); } });
   { const H = HARBOR, o = G.harbor.out, e = G.harbor.dockEnd; intro('seenHarbor', H.x, H.z, 22, [{ dur: 5, text: 'Driftwood Harbor. Nets drying, boats nodding at the dock.', from: [[e[0] + o[0] * 14, 7, e[1] + o[1] * 14], [H.x, 4, H.z]], to: [[e[0] - o[0] * 6, 4.5, e[1] - o[1] * 6 + 5], [H.x, 5, H.z]] }, { dur: 4, text: 'The smallest port on the island, and the best fishing.', from: [[H.x - o[0] * 30, 22, H.z - o[1] * 30], [H.x, 3, H.z]], to: [[H.x - o[0] * 20 + 10, 12, H.z - o[1] * 20], [e[0], 1, e[1]]] }]);
     intro('seenCay', CAY.x, CAY.z, 20, [{ dur: 5.5, text: 'Coconut Cay. Nothing here but palms, a hut and the sound of the sea.', from: [[CAY.x + 46, 16, CAY.z + 30], [CAY.x, 2, CAY.z]], to: [[CAY.x + 14, 6, CAY.z + 22], [CAY.x, 3, CAY.z]] }]);
-    intro('seenTerrace', TERRACE.x, TERRACE.z, 12, [{ dur: 5.5, text: 'Cloudrest. The whole island lies at your feet.', from: [[TERRACE.x, TERRACE.h + 3, TERRACE.z - 6], [P.x, P.h, P.z]], to: [[TERRACE.x + 26, TERRACE.h + 22, TERRACE.z - 30], [TERRACE.x, TERRACE.h, TERRACE.z + 10]] }]); }
+    intro('seenTerrace', TERRACE.x, TERRACE.z, 12, [{ dur: 5.5, text: 'Cloudrest. The whole island lies at your feet.', from: [[TERRACE.x + 1, TERRACE.h + 3.2, TERRACE.z + 11], [P.x, P.h, P.z]], to: [[TERRACE.x + 16, TERRACE.h + 12, TERRACE.z + 38], [P.x, P.h, P.z]] }]); }
   // stuck somewhere? Backspace twice takes you back to the plaza
   { let last = 0; addEventListener('keydown', (ev) => { if (ev.code !== 'Backspace' || G.inTitle || G.busy || G.cine || ctl.driving || hud.dialogOpen) return; const now = performance.now(); if (now - last < 2500) { last = 0; G.exitInterior?.(); G.resetRooms?.forEach((f) => f()); G.indoors = null; ctl.floor = null; ctl.cam.indoor = null; ctl.cam.maxDist = null; hud.root.classList.remove('indoors'); ctl.locked = false; ctl.teleport(P.x + 2, P.z + 22); hud.flash(); audio.good(); hud.toast('Back in the plaza'); } else { last = now; hud.toast('Stuck?', 'Press <b>Backspace</b> again to return to the plaza'); } }); }
   G.areaTotal = G.areas?.length || G.areaTotal; G.refreshMarkers?.();

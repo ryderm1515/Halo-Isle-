@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { SPOTS, PONDS, HARBOR, TERRACE, CAY } from './layout.js';
-import { heightAt, grassAt } from './terrain.js';
+import { heightAt, grassAt, streamInfo } from './terrain.js';
 import { addCircle, addBox, addPlatform, groundAt } from './colliders.js';
 import { bouncers } from '../hero/controller.js';
 import { applyLib } from './materials.js';
@@ -49,7 +49,7 @@ export async function initWorld(G, loader) {
   // ---- island-wide foliage: instanced and chunked so only what is near/in view costs anything
   const want = { palm: [], tree: [], bush: [], rock: [] }, far = (x, z, p, r) => Math.hypot(x - p.x, z - p.z) > r;
   for (let i = 0; i < 9000; i++) {
-    const x = (R() - 0.5) * 680, z = (R() - 0.5) * 660, h = heightAt(x, z); if (h < 1.5 || h > 112) continue;
+    const x = (R() - 0.5) * 680, z = (R() - 0.5) * 660, h = heightAt(x, z); if (h < 1.5 || h > 112) continue; if (x > -10 && x < 56 && z > 48 && z < 262 && streamInfo(x, z).d < 7.5) continue;   // keep the creek banks and its bridges clear
     if (!far(x, z, P, P.r + 2.5) || !far(x, z, SPOTS.lighthouse, 9) || !far(x, z, SPOTS.observatory, 13) || !far(x, z, SPOTS.ruins, 11) || !far(x, z, { x: 66, z: 221 }, 46) || !far(x, z, SPOTS.windRidge, 5) || !far(x, z, HARBOR, HARBOR.r + 2) || !far(x, z, TERRACE, TERRACE.r + 1) || PONDS.some((K) => Math.hypot((x - K.x) / K.sx, z - K.z) < K.r + 3) || !far(x, z, { x: 118, z: 114 }, 18) || (x > 152 && x < 190 && z > 100 && z < 168 && Math.abs((x - 160) * 0.937 + (z - 160) * 0.349) < 7)) continue;
     const g = grassAt(x, z, h), nearTown = Math.hypot(x - P.x, z - P.z) < 120, coastal = h < 4.6, t = R();
     if (coastal && h > 1.9) { if (t < 0.5 && want.palm.length < 230) want.palm.push([x, z, h, 0.95 + R() * 0.5]); else if (t > 0.93 && want.rock.length < 150) want.rock.push([x, z, h, 0.5 + R() * 1.2]); continue; }

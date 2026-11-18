@@ -24,7 +24,7 @@ export async function initLandmarks(G, loader, terrain) {
 
   // ---- lake + plunge pool + the waterfall between them
   const waters = [];
-  for (const K of PONDS) { const geo = new T.CircleGeometry(K.r + 1.6, 48).rotateX(-Math.PI / 2); geo.scale(K.sx, 1, 1); geo.translate(K.x, 0, K.z); const w = buildWater(terrain.depthTex, terrain.depthSize, geo, K.level); root.add(w.mesh); waters.push(w); }
+  for (const K of PONDS) { const geo = new T.CircleGeometry(K.r + 0.7, 48).rotateX(-Math.PI / 2); geo.scale(K.sx, 1, 1); geo.translate(K.x, 0, K.z); const w = buildWater(terrain.depthTex, terrain.depthSize, geo, K.level); root.add(w.mesh); waters.push(w); }
   { // ribbon that follows the cliff from the lake lip down into the pool
     const a = PONDS[0], b = PONDS[1], dir = new T.Vector2(b.x - a.x, b.z - a.z).normalize(), perp = new T.Vector2(-dir.y, dir.x), W = 5.2, N = 40, pos = [], uv = [], idx = [];
     const s0 = Math.hypot(SPOTS.falls.x - a.x, SPOTS.falls.z - a.z) - 9, len = 17; let dist = 0, prev = null;
