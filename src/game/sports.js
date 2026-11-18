@@ -133,7 +133,7 @@ export async function initSports(G, loader) {
     const net = models.hoop_net?.clone() || new T.Group(); net.position.set(0, RIM, 0.33); g.add(net);
     const rx = HX, rz = HZ + 0.33, ry = DY + RIM;
     mk(new T.RingGeometry(6.4, 6.5, 48, 1, 0, Math.PI).rotateX(-Math.PI / 2), white, 0, 0.012, 0.33, g, false).rotation.y = Math.PI;
-    const spots = [-1.25, -0.62, 0, 0.62, 1.25].map((a) => [HX + Math.sin(a) * 6.75, HZ + 0.33 + Math.cos(a) * 6.75]);
+    const spots = [-0.75, -0.38, 0, 0.38, 0.75].map((a) => [HX + Math.sin(a) * 6.75, HZ + 0.33 + Math.cos(a) * 6.75]);   // kept clear of the bowling lane next door
     const racks = spots.map(([x, z]) => { const r = new T.Group(), dx = rx - x, dz = rz - z, l = Math.hypot(dx, dz); r.position.set(x + dz / l * 0.95, DY, z - dx / l * 0.95); r.rotation.y = Math.atan2(dx, dz) + Math.PI / 2; root.add(r); box(1.1, 0.06, 0.4, navy, 0, 0.55, 0, r); for (const e of [-0.5, 0.5]) box(0.05, 0.55, 0.05, white, e, 0.27, 0, r); r.balls = []; return r; });
     const bM = new T.MeshStandardMaterial({ color: '#ff8a3a', roughness: 0.55 }), bGold = new T.MeshPhysicalMaterial({ color: '#ffd23f', emissive: '#ffb000', emissiveIntensity: 0.5, roughness: 0.25, clearcoat: 1 }), seam = new T.MeshBasicMaterial({ color: '#3a1f0d' });
     const mkBall = (m) => { const b = ball(0.12, m, 0, 0, 0, null); for (const r of [0, Math.PI / 2]) { const t = mk(new T.TorusGeometry(0.121, 0.005, 4, 24), seam, 0, 0, 0, b, false); t.rotation.y = r; } return b; };
@@ -146,7 +146,7 @@ export async function initSports(G, loader) {
       A.cur = { cancel: leave, update(dt) { const si = Math.min(4, (st.n / 5) | 0), [sx, sz] = spots[si], hy = Math.atan2(rx - sx, rz - sz), hp = ctl.pos;
           // walk to the next rack between racks
           const tx = sx, tz = sz; if (Math.hypot(hp.x - tx, hp.z - tz) > 0.05) { const k = Math.min(1, dt * 7); ctl.teleport(lerp(hp.x, tx, k), lerp(hp.z, tz, k), DY); } else ctl.teleport(tx, tz, DY); ctl.yaw = hy;
-          const cx = sx - Math.sin(hy) * 4.2 + Math.cos(hy) * 1.3, cz = sz - Math.cos(hy) * 4.2 - Math.sin(hy) * 1.3; kit.look(cx, DY + 2.4, cz, rx, ry - 0.6, rz, 50);
+          const cx = sx - Math.sin(hy) * 4.4 + Math.cos(hy) * 1.5, cz = sz - Math.cos(hy) * 4.4 - Math.sin(hy) * 1.5; kit.look(cx, DY + 2.5, cz, rx - Math.cos(hy) * 0.6, ry - 1.1, rz + Math.sin(hy) * 0.6, 48);
           if (st.go < 0) { const b = Math.ceil(-st.go); st.go += dt; hud.activityUpdate(String(Math.ceil(-st.go) || 'GO'), 'Get ready…'); if (Math.ceil(-st.go) < b) audio.ui(); if (st.go >= 0) { audio.good(); kit.bigText('GO!', '#8cd64a'); } return; }
           st.t -= dt; hud.activityUpdate(String(st.score), `${Math.max(0, st.t).toFixed(1)} s · rack ${si + 1} / 5${st.streak >= 3 ? ' · 🔥 on fire' : ''}`);
           // balls in the air: a true arc to the rim, then either down through the net or off the iron
